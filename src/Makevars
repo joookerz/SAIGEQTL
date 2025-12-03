@@ -1,5 +1,6 @@
 PKG_CPPFLAGS = \
 -std=c++14 \
+-isystem ../.pixi/envs/default/include \
 -I ../thirdParty/cget/include \
 -I ../thirdParty/cget/lib \
 -I ../thirdParty/cget/lib64 \
