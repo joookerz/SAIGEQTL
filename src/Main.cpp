@@ -4621,7 +4621,7 @@ void gen_sp_Sigma_multiV(arma::fvec& wVec,  arma::fvec& tauVec){
 }
 
 
-
+/*
 // [[Rcpp::export]]
 arma::fvec getPCG1ofSigmaAndVector_multiV(arma::fvec& wVec,  arma::fvec& tauVec, arma::fvec& bVec, int maxiterPCG, float tolPCG, bool LOCO){
     //std::cout << "getPCG1ofSigmaAndVector_multiV start" << std::endl;
@@ -4682,7 +4682,68 @@ arma::fvec getPCG1ofSigmaAndVector_multiV(arma::fvec& wVec,  arma::fvec& tauVec,
 } 
         return(xVec);
 }
+*/
 
+
+// [[Rcpp::export]]
+arma::fvec getPCG1ofSigmaAndVector_multiV(arma::fvec& wVec,  arma::fvec& tauVec, arma::fvec& bVec, int maxiterPCG, float tolPCG, bool LOCO){
+
+    int Nnomissing = wVec.n_elem;
+    arma::fvec xVec(Nnomissing);
+
+    xVec.zeros();
+
+    //std::cout << "Nnomissing " << Nnomissing << std::endl;
+
+    if(g_isStoreSigma){
+
+        //std::cout << " arma::spsolve(g_spSigma, bVec) 0" << std::endl;
+
+        xVec = arma::spsolve(g_spSigma, bVec);
+
+        //std::cout << " arma::spsolve(g_spSigma, bVec) 1" << std::endl;
+
+    }else{
+
+        if (tauVec(1) == 0) {
+
+            xVec = (wVec / tauVec(0))* bVec;
+
+        } else {
+
+            auto n = g_I_start_indices.n_elem - 1;
+
+            for (int j=0; j<n;j++) {
+
+                size_t start = g_I_start_indices[j];
+                size_t end = g_I_start_indices[j+1];
+
+                float sum_S = 0;
+                float sum_delta_b = 0;
+
+                for (size_t k=start; k<end; k++){
+                    sum_S += wVec(k);
+                    sum_delta_b += wVec(k) * bVec(k);
+                }
+
+                sum_S = 1 + tauVec(1) * (sum_S / tauVec(0));
+
+                sum_delta_b /= tauVec(0);
+
+                for (size_t k=start; k<end; k++){
+
+                    xVec(k) = (wVec(k) / tauVec(0))* bVec(k) - (tauVec(1)* ((wVec(k)/ tauVec(0)) * sum_delta_b)) / sum_S;
+
+                }
+
+           }
+
+      }
+
+    }
+
+    return(xVec);
+}
 
 
 // [[Rcpp::export]]
