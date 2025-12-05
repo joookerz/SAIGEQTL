@@ -1515,6 +1515,8 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
 
   Sigma_iX_noLOCO <- getSigma_X_multiV(W, tauVecNew, X, maxiterPCG, tolPCG, LOCO = FALSE)
 
+  # Pre-compute matrix inverse to avoid recomputing in marker loop
+  XtSigma_iX_inv <- solve(crossprod(X, Sigma_iX_noLOCO))
 
   y <- obj.glmm.null$y
 
@@ -1663,7 +1665,10 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
 
       while (ratioCV > ratioCVcutoff) {
         while (numTestedMarker < numMarkers0) {
-          macdata_i <- listOfMarkersForVarRatio[[k]][indexInMarkerList]
+
+	  cat("numTestedMarker " , numTestedMarker , "\n")
+	  cat("numMarkers0 ", numMarkers0 , "\n")
+	  macdata_i <- listOfMarkersForVarRatio[[k]][indexInMarkerList]
           i <- (MACdata$indexInGeno)[macdata_i]
           genoInd <- (MACdata$geno_ind)[macdata_i]
           cat(i, "th marker in geno ", genoInd, "\n")
@@ -1745,7 +1750,7 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
             Sigma_iG <- getSigma_G_multiV(W, tauVecNew, G, maxiterPCG, tolPCG, LOCO = FALSE)
             Sigma_iX <- Sigma_iX_noLOCO
 
-            var1 <- crossprod(G, Sigma_iG) - crossprod(G, Sigma_iX) %*% solve(crossprod(X, Sigma_iX)) %*% crossprod(X, Sigma_iG)
+            var1 <- crossprod(G, Sigma_iG) - crossprod(G, Sigma_iX) %*% XtSigma_iX_inv %*% crossprod(X, Sigma_iG)
             cat("AC ", AC, "\n")
             S <- innerProduct(G, obj.glmm.null$residuals * var_weights)
             cat("S is ", S, "\n")
@@ -1788,7 +1793,7 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
                 getildeMat <- cbind(getildeMat, GE_tilde)
 
                 Sigma_iGE <- getSigma_G_multiV(W, tauVecNew, GE_tilde, maxiterPCG, tolPCG, LOCO = FALSE)
-                var1GE <- crossprod(GE_tilde, Sigma_iGE) - crossprod(GE_tilde, Sigma_iX) %*% solve(crossprod(X, Sigma_iX)) %*% crossprod(X, Sigma_iGE)
+                var1GE <- crossprod(GE_tilde, Sigma_iGE) - crossprod(GE_tilde, Sigma_iX) %*% XtSigma_iX_inv %*% crossprod(X, Sigma_iGE)
                 var1GE_vec <- c(var1GE_vec, var1GE)
                 S_GE <- innerProduct(GE_tilde, obj.glmm.null$residuals * var_weights)
                 p_exact_GE <- pchisq(S_GE^2 / var1GE, df = 1, lower.tail = F)
