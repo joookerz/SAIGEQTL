@@ -119,6 +119,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
                                isStoreSigma = FALSE,
                                isShrinkModelOutput = FALSE,
                                isExportResiduals = FALSE) {
+      start_0 <- proc.time()
   ## set up output files
   modelOut <- paste0(outputPrefix, ".rda")
 
@@ -309,7 +310,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
       cat(varWeightsCol, " is the weights for variance\n")
       checkColList <- c(checkColList, varWeightsCol)
     }
-
+      start_1 <- proc.time()
 
     ## check whether the phenotype file is large
     cmd <- paste0("du ", phenoFile, "| awk '{print $1}' > ", outputPrefix, "_", phenoCol, "_size_temp")
@@ -369,6 +370,9 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
         )
       }
     }
+
+
+      start_2 <- proc.time()
 
     file.remove(paste0(outputPrefix, "_", phenoCol, "_size_temp"))
 
@@ -449,9 +453,12 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
       }
     }
 
-
+      start_3 <- proc.time()
     print("HERERE2")
 
+
+
+if(FALSE){
     if (length(covarColList) > 0) {
       formula <- paste0(phenoCol, "~", paste0(covarColList,
         collapse = "+"
@@ -486,24 +493,76 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
         sampleCovarCol_q_names <- NULL
       }
     }
+} #if(FALSE){
+
+  # Pre-compute logical conditions
+  hasCovariate <- length(covarColList) > 0
+  hasSampleCovar <- length(sampleCovarCol) > 0
+  hasQCovar <- length(qCovarCol) > 0
+
+  # Build formula efficiently
+  if (hasCovariate) {
+    formula <- paste0(phenoCol, "~", paste(covarColList, collapse
+   = "+"))
+  } else {
+    formula <- paste0(phenoCol, "~ 1")
+  }
+
+  cat("formula is ", formula, "\n")
+  formula.null <- as.formula(formula)
+  mmat <- model.matrix(formula.null, data, na.action = NULL)
+  
+  # More efficient column binding - find phenoCol index once
+  pheno_idx <- match(phenoCol, colnames(data))
+  mmat <- cbind(mmat, data[, pheno_idx, drop = FALSE])
+  colnames(mmat)[ncol(mmat)] <- phenoCol
+
+  # Optimize sample covariate processing
+  sampleCovarCol_q_names <- NULL
+  if (hasSampleCovar) {
+    cat(sampleCovarCol, "are sample-level covariates\n")
+    
+    if (hasQCovar) {
+      # Use intersect() for better performance than nested %in%
+      sampleCovarCol_q <- intersect(sampleCovarCol, qCovarCol)
+      if (length(sampleCovarCol_q) > 0) {
+        # Avoid creating temporary matrix - just get the expanded names
+        temp_formula <- as.formula(paste0("~", paste(sampleCovarCol_q, collapse = "+")))
+        temp_terms <- terms(temp_formula, data = data)
+        sampleCovarCol_q_names <- attr(temp_terms, "term.labels")
+      }
+    }
+  }
 
 
+      start_3_b <- proc.time()
 
+    # Pre-compute column indices to avoid repeated which() calls
+    col_indices <- list()
+    if(length(offsetCol) > 0 && offsetCol != "") col_indices[["offset"]] <- match(offsetCol, colnames(data))
+    if(length(varWeightsCol) > 0 && varWeightsCol != "") col_indices[["varWeights"]] <- match(varWeightsCol, colnames(data))
+    if(length(sampleIDColinphenoFile) > 0 && sampleIDColinphenoFile != "") col_indices[["IID"]] <- match(sampleIDColinphenoFile, colnames(data))
+    if(length(cellIDColinphenoFile) > 0 && cellIDColinphenoFile != "") col_indices[["barcode"]] <- match(cellIDColinphenoFile, colnames(data))
+    if(length(longlCol) > 0 && longlCol != "") col_indices[["longl"]] <- match(longlCol, colnames(data))
+
+    # Build additional columns list once
+    extra_cols <- list()
     coln <- 1
-    if (length(offsetCol) > 0) {
-      mmat <- cbind(mmat, data[, which(colnames(data) == offsetCol), drop = F])
-      colnames(mmat)[ncol(mmat)] <- offsetCol
+
+    if (length(offsetCol) > 0 && !is.null(col_indices[["offset"]])) {
+      extra_cols[[offsetCol]] <- data[, col_indices[["offset"]], drop = FALSE]
       coln <- coln + 1
     }
 
-    if (length(varWeightsCol) > 0) {
-      mmat <- cbind(mmat, data[, which(colnames(data) == varWeightsCol), drop = F])
-      colnames(mmat)[ncol(mmat)] <- varWeightsCol
-
+    if (length(varWeightsCol) > 0 && !is.null(col_indices[["varWeights"]])) {
+      extra_cols[[varWeightsCol]] <- data[, col_indices[["varWeights"]], drop = FALSE]
       coln <- coln + 1
     }
 
-
+    # Single cbind operation instead of multiple
+    if (length(extra_cols) > 0) {
+      mmat <- cbind(mmat, do.call(cbind, extra_cols))
+    }
 
     if (length(covarColList) > 0) {
       if (length(qCovarCol) > 0) {
@@ -513,15 +572,20 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
       }
     }
 
-    mmat$IID <- data[, which(sampleIDColinphenoFile == colnames(data))]
-    if (cellIDColinphenoFile != "") {
-      mmat$barcode <- data[, which(cellIDColinphenoFile == colnames(data))]
+    # Add required ID columns efficiently
+    if (!is.null(col_indices[["IID"]])) {
+      mmat$IID <- data[, col_indices[["IID"]]]
     }
-    if (longlCol != "") {
-      mmat$longlVar <- data[, which(longlCol == colnames(data))]
+    if (cellIDColinphenoFile != "" && !is.null(col_indices[["barcode"]])) {
+      mmat$barcode <- data[, col_indices[["barcode"]]]
+    }
+    if (longlCol != "" && !is.null(col_indices[["longl"]])) {
+      mmat$longlVar <- data[, col_indices[["longl"]]]
     }
 
-    mmat_nomissing <- mmat[complete.cases(mmat), ]
+    # More efficient NA removal using rowSums
+    complete_rows <- rowSums(is.na(mmat)) == 0
+    mmat_nomissing <- mmat[complete_rows, ]
     mmat_nomissing$IndexPheno <- seq(1, nrow(mmat_nomissing),
       by = 1
     )
@@ -543,6 +607,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
       cat(nrow(mmat_nomissing), " samples who have non-missing phenotypes are also in the sparse GRM\n")
     }
 
+      start_3_c <- proc.time()
 
     if (longlCol == "") {
       if (any(duplicated(mmat_nomissing$IID))) {
@@ -567,6 +632,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
       dataMerge_sort$IIDgeno <- dataMerge_sort$IID
     }
 
+      start_4 <- proc.time()
     print("Test")
     print(head(dataMerge_sort))
     # dataMerge_sort = dataMerge
@@ -612,7 +678,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
   }
 
 
-
+      start_5 <- proc.time()
   print("Test3")
   print(head(dataMerge_sort))
 
@@ -682,6 +748,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
     data.new <- dataMerge_sort
     out.transform <- NULL
   }
+      start_5_b <- proc.time()
 
   if (traitType == "binary") {
     if (length(offsetCol) == 0) {
@@ -690,7 +757,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
         family = binomial, weights = varWeights
       )
     } else {
-      offsetColVal <- data.new[, which(colnames(data.new) == offsetCol)]
+      offsetColVal <- data.new[, offset_idx]
       modwitcov <- glm(formula.new,
         offset = offsetColVal, data = data.new,
         family = binomial, weights = varWeights
@@ -703,7 +770,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
         family = gaussian(link = "identity"), weights = varWeights
       )
     } else {
-      offsetColVal <- data.new[, which(colnames(data.new) == offsetCol)]
+      offsetColVal <- data.new[, offset_idx]
       modwitcov <- glm(formula.new,
         offset = offsetColVal, data = data.new,
         family = gaussian(link = "identity"), weights = varWeights
@@ -716,7 +783,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
         family = "poisson", weights = varWeights
       )
     } else {
-      offsetColVal <- data.new[, which(colnames(data.new) == offsetCol)]
+      offsetColVal <- data.new[, offset_idx]
       modwitcov <- glm(formula.new,
         offset = offsetColVal, data = data.new,
         family = "poisson", weights = varWeights
@@ -730,14 +797,17 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
       )
     } else {
       print(head(data.new))
-      offsetColVal <- data.new[, which(colnames(data.new) == offsetCol)]
+      offsetColVal <- data.new[, offset_idx]
       modwitcov <- glm(formula.new,
         offset = offsetColVal, data = data.new,
         family = NegBin(), weights = varWeights
       )
     }
   }
-  mmat <- model.matrix(formula.new, data = data.new, na.action = NULL)
+      start_5_c <- proc.time()
+      # Extract design matrix from already-fitted glm model to avoid recomputation
+      mmat <- model.matrix(modwitcov)
+      start_5_d <- proc.time()
 
   if (isCovariateOffset) {
     covoffset <- mmat[, -1, drop = F] %*% modwitcov$coefficients[-1]
@@ -752,7 +822,11 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
 
   data.new$covoffset <- covoffset
 
+  # Pre-compute column indices to avoid repeated which() calls  
+  offset_idx <- if(length(offsetCol) > 0) match(offsetCol, colnames(data.new)) else NA
+  pheno_idx <- match(phenoCol, colnames(dataMerge_sort))
 
+      start_6 <- proc.time()
   if (useSparseGRMtoFitNULL | useSparseGRMforVarRatio) {
     if (!isSparseGRMIdentity) {
       getsubGRM_orig(sparseGRMFile, sparseGRMSampleIDFile, relatednessCutoff, dataMerge_sort$IID)
@@ -875,9 +949,8 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
       }
       Xorig <- NULL
     } else {
-      fit0orig <- glm(formula.new.withCov, data = data.new, family = binomial, weights = varWeights)
-      Xorig <- model.matrix(fit0orig)
-      rm(fit0orig)
+      # Skip expensive GLM fitting - only need the design matrix
+      Xorig <- model.matrix(as.formula(formula.new.withCov), data = data.new)
       gc()
       if (length(offsetCol) == 0) {
         fit0 <- glm(formula.new,
@@ -885,7 +958,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
           family = binomial, weights = varWeights
         )
       } else {
-        offsetTotal <- covoffset + data.new[, which(colnames(data.new) == offsetCol)]
+        offsetTotal <- covoffset + data.new[, offset_idx]
         fit0 <- glm(formula.new, data = data.new, offset = offsetTotal, family = binomial, weights = varWeights)
       }
     }
@@ -895,14 +968,13 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
       if (length(offsetCol) == 0) {
         fit0 <- glm(formula.new, data = data.new, family = gaussian(link = "identity"), weights = varWeights)
       } else {
-        offsetColVal <- data.new[, which(colnames(data.new) == offsetCol)]
+        offsetColVal <- data.new[, offset_idx]
         fit0 <- glm(formula.new, data = data.new, offset = offsetColVal, family = gaussian(link = "identity"), weights = varWeights)
       }
       Xorig <- NULL
     } else {
-      fit0orig <- glm(formula.new.withCov, data = data.new, family = gaussian(link = "identity"), weights = varWeights)
-      Xorig <- model.matrix(fit0orig)
-      rm(fit0orig)
+      # Skip expensive GLM fitting - only need the design matrix
+      Xorig <- model.matrix(as.formula(formula.new.withCov), data = data.new)
       gc()
       if (length(offsetCol) == 0) {
         fit0 <- glm(formula.new,
@@ -910,7 +982,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
           family = gaussian(link = "identity"), weights = varWeights
         )
       } else {
-        offsetTotal <- covoffset + data.new[, which(colnames(data.new) == offsetCol)]
+        offsetTotal <- covoffset + data.new[, offset_idx]
         fit0 <- glm(formula.new, data = data.new, offset = offsetTotal, family = gaussian(link = "identity"), weights = varWeights)
       }
     }
@@ -928,7 +1000,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
     # }
     # print("after remove zeros")
     # print(dim(dataMerge_sort))
-    miny <- min(dataMerge_sort[, which(colnames(dataMerge_sort) == phenoCol)])
+    miny <- min(dataMerge_sort[, pheno_idx])
     if (miny < 0) {
       stop("ERROR! phenotype value needs to be non-negative \n")
     }
@@ -942,9 +1014,8 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
       }
       Xorig <- NULL
     } else {
-      fit0orig <- glm(formula.new.withCov, data = data.new, family = "poisson", weights = varWeights)
-      Xorig <- model.matrix(fit0orig)
-      rm(fit0orig)
+      # Skip expensive GLM fitting - only need the design matrix
+      Xorig <- model.matrix(as.formula(formula.new.withCov), data = data.new)
       gc()
       if (length(offsetCol) == 0) {
         fit0 <- glm(formula.new,
@@ -965,7 +1036,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
         stop("ERROR: no samples are left after removing zeros in the phenotype\n")
       }
     }
-    miny <- min(dataMerge_sort[, which(colnames(dataMerge_sort) == phenoCol)])
+    miny <- min(dataMerge_sort[, pheno_idx])
     if (miny < 0) {
       stop("ERROR! phenotype value needs to be non-negative \n")
     }
@@ -973,15 +1044,14 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
       if (length(offsetCol) == 0) {
         fit0 <- glm(formula.new, data = data.new, family = NegBin(), weights = varWeights)
       } else {
-        offsetColVal <- data.new[, which(colnames(data.new) == offsetCol)]
+        offsetColVal <- data.new[, offset_idx]
         fit0 <- glm(formula.new, data = data.new, offset = offsetColVal, family = NegBin(), weights = varWeights)
       }
 
       Xorig <- NULL
     } else {
-      fit0orig <- glm(formula.new.withCov, data = data.new, family = NegBin(), weights = varWeights)
-      Xorig <- model.matrix(fit0orig)
-      rm(fit0orig)
+      # Skip expensive GLM fitting - only need the design matrix
+      Xorig <- model.matrix(as.formula(formula.new.withCov), data = data.new)
       gc()
       if (length(offsetCol) == 0) {
         fit0 <- glm(formula.new,
@@ -989,7 +1059,7 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
           family = NegBin()
         )
       } else {
-        offsetTotal <- covoffset + data.new[, which(colnames(data.new) == offsetCol)]
+        offsetTotal <- covoffset + data.new[, offset_idx]
         fit0 <- glm(formula.new, data = data.new, offset = offsetTotal, family = NegBin(), weights = varWeights)
       }
     }
@@ -1000,7 +1070,34 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
   print(fit0)
   obj.noK <- NULL
 
+      start_7 <- proc.time()
 
+print("start_1 - start_0")
+print(start_1 - start_0)
+
+print("start_2 - start_0")
+print(start_2 - start_0)
+
+print("start_3 - start_0")
+print(start_3 - start_0)
+print("start_3_b - start_0")
+print(start_3_b - start_0)
+print("start_3_c - start_0")
+print(start_3_c - start_0)
+print("start_4 - start_0")
+print(start_4 - start_0)
+print("start_5 - start_0")
+print(start_5 - start_0)
+print("start_5_b - start_0")
+print(start_5_b - start_0)
+print("start_5_c - start_0")
+print(start_5_c - start_0)
+print("start_5_d - start_0")
+print(start_5_d - start_0)
+print("start_6 - start_0")
+print(start_6 - start_0)
+print("start_7 - start_0")
+print(start_7 - start_0)
   # if(length(fit0$y) > 200000){
   #  isStoreSigma = FALSE
   # }else{
@@ -1065,9 +1162,8 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
         }
         Xorig <- NULL
       } else {
-        fit0orig <- glm(formula.new.withCov, data = data.new, family = gaussian(link = "identity"), weights = varWeights)
-        Xorig <- model.matrix(fit0orig)
-        rm(fit0orig)
+        # Skip expensive GLM fitting - only need the design matrix
+        Xorig <- model.matrix(as.formula(formula.new.withCov), data = data.new)
         gc()
         if (length(offsetCol) == 0) {
           fit0 <- glm(formula.new,
