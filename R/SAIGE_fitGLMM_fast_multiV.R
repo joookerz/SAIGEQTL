@@ -1199,9 +1199,26 @@ print(start_7 - start_0)
         print(head(modglmm$coefficients[-1]))
         modglmm$offset <- data.new.X %*% (as.vector(modglmm$coefficients[-1]))
         if (LOCO) {
-          for (j in 1:22) {
-            if (modglmm$LOCOResult[[j]]$isLOCO) {
-              modglmm$LOCOResult[[j]]$offset <- data.new.X %*% (as.vector(modglmm$LOCOResult[[j]]$coefficients[-1]))
+          # Parallelize chromosome processing for LOCO
+          if (nThreads > 1 && require(parallel, quietly = TRUE)) {
+            cl <- makeCluster(min(nThreads, 22))
+            tryCatch({
+              clusterExport(cl, c("modglmm", "data.new.X"))
+              parLapply(cl, 1:22, function(j) {
+                if (modglmm$LOCOResult[[j]]$isLOCO) {
+                  modglmm$LOCOResult[[j]]$offset <- data.new.X %*% (as.vector(modglmm$LOCOResult[[j]]$coefficients[-1]))
+                }
+                return(modglmm$LOCOResult[[j]])
+              })
+            }, finally = {
+              stopCluster(cl)
+            })
+          } else {
+            # Fallback to sequential processing
+            for (j in 1:22) {
+              if (modglmm$LOCOResult[[j]]$isLOCO) {
+                modglmm$LOCOResult[[j]]$offset <- data.new.X %*% (as.vector(modglmm$LOCOResult[[j]]$coefficients[-1]))
+              }
             }
           }
         }
@@ -1553,7 +1570,7 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
                                         numRandomMarkerforSparseKin,
                                         relatednessCutoff,
                                         useSparseGRMtoFitNULL,
-                                        nThreads,
+                                        nThreads = 4,  # Use 4 CPUs by default
                                         cateVarRatioMinMACVecExclude,
                                         cateVarRatioMaxMACVecInclude,
                                         minMAFforGRM,
@@ -1585,12 +1602,12 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
   # }
 
 
-  print("mu[1:20]")
-  print(mu[1:20])
+  #print("mu[1:20]")
+  #print(mu[1:20])
   W <- sqrtW^2 ## (mu*(1-mu) for binary)
   W <- W * var_weights
-  print("mu[1:20]")
-  print(W[1:20])
+  #print("W[1:20]")
+  #print(W[1:20])
   tauVecNew <- obj.glmm.null$theta
 
   # isStoreSigma=FALSE
@@ -1677,9 +1694,30 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
       cateVarRatioIndexVec <- rep(1, length(cateVarRatioMinMACVecExclude))
     }
     numCate <- length(cateVarRatioIndexVec)
-    for (i in 1:(numCate - 1)) {
-      MACindex <- which(MACdata$MACvector > cateVarRatioMinMACVecExclude[i] & MACdata$MACvector <= cateVarRatioMaxMACVecInclude[i])
-      listOfMarkersForVarRatio[[i]] <- sample(MACindex, size = length(MACindex), replace = FALSE)
+    
+    # Parallelize MAC category processing using multiple CPUs
+    if (numCate > 1 && nThreads > 1 && require(parallel, quietly = TRUE)) {
+      cl <- makeCluster(min(nThreads, numCate-1))
+      tryCatch({
+        clusterEvalQ(cl, library(base))  # Ensure base functions are available
+        clusterExport(cl, c("MACdata", "cateVarRatioMinMACVecExclude", "cateVarRatioMaxMACVecInclude"))
+        listOfMarkersForVarRatio_parallel <- parLapply(cl, 1:(numCate - 1), function(i) {
+          MACindex <- which(MACdata$MACvector > cateVarRatioMinMACVecExclude[i] & 
+                           MACdata$MACvector <= cateVarRatioMaxMACVecInclude[i])
+          sample(MACindex, size = length(MACindex), replace = FALSE)
+        })
+        for (i in 1:(numCate - 1)) {
+          listOfMarkersForVarRatio[[i]] <- listOfMarkersForVarRatio_parallel[[i]]
+        }
+      }, finally = {
+        stopCluster(cl)
+      })
+    } else {
+      # Fallback to sequential processing
+      for (i in 1:(numCate - 1)) {
+        MACindex <- which(MACdata$MACvector > cateVarRatioMinMACVecExclude[i] & MACdata$MACvector <= cateVarRatioMaxMACVecInclude[i])
+        listOfMarkersForVarRatio[[i]] <- sample(MACindex, size = length(MACindex), replace = FALSE)
+      }
     }
 
     if (length(cateVarRatioMaxMACVecInclude) == (numCate - 1)) {
@@ -1717,6 +1755,10 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
   freqVec <- getAlleleFreqVec()
   Nnomissing <- length(mu)
   varRatioTable <- NULL
+  
+  # Move these expensive function calls outside the marker loop
+  set_isSparseGRM(useSparseGRMtoFitNULL)
+  set_useGRMtoFitNULL(useGRMtoFitNULL)
 
 
   # uniqsampleind = which(!duplicated(obj.glmm.null$sampleID))
@@ -1762,13 +1804,13 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
       while (ratioCV > ratioCVcutoff) {
         while (numTestedMarker < numMarkers0) {
 
-	  cat("numTestedMarker " , numTestedMarker , "\n")
-	  cat("numMarkers0 ", numMarkers0 , "\n")
+	  # cat("numTestedMarker " , numTestedMarker , "\n")
+	  # cat("numMarkers0 ", numMarkers0 , "\n")
 	  macdata_i <- listOfMarkersForVarRatio[[k]][indexInMarkerList]
           i <- (MACdata$indexInGeno)[macdata_i]
           genoInd <- (MACdata$geno_ind)[macdata_i]
-          cat(i, "th marker in geno ", genoInd, "\n")
-          cat("MAC: ", (MACdata$MACvector)[macdata_i], "\n")
+          # cat(i, "th marker in geno ", genoInd, "\n")
+          # cat("MAC: ", (MACdata$MACvector)[macdata_i], "\n")
           if (genoInd == 0) {
             G0 <- Get_OneSNP_Geno(i - 1)
           } else if (genoInd == 1) {
@@ -1776,37 +1818,36 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
           }
 
           # if(sum(duplicated(obj.glmm.null$sampleID)) > 0){
-          if (sum(G0) / (2 * length(G0)) > 0.5) {
+          # Cache frequently used computation
+          G0_len_2 <- 2 * length(G0)
+          if (sum(G0) / G0_len_2 > 0.5) {
             G0 <- 2 - G0
           }
           G0sample <- G0
-          print("length(G0)   aaaaa")
-          print(length(G0))
-          cat("G0", G0[1:10], "\n")
-          print(dim(I_mat))
-          print(length(G0sample))
+          # print("length(G0)   aaaaa")
+          # print(length(G0))
+          # cat("G0", G0[1:10], "\n")
+          # print(dim(I_mat))
+          # print(length(G0sample))
           G0 <- as.numeric(I_mat %*% G0sample)
           # }
           # print("length(G0)   bbbb")
           # print(length(G0))
-          cat("G0", G0[1:10], "\n")
+          # cat("G0", G0[1:10], "\n")
 
           CHR <- bimPlink[Indexvector_forVarRatio[i] + 1, 1]
-          cat("CHR ", CHR, "\n")
-          print(bimPlink[Indexvector_forVarRatio[i] + 1, ])
-          # if(sum(G0)/(2*Nnomissing) > 0.5){
-          if (sum(G0) / (2 * length(G0)) > 0.5) {
-            G0 <- 2 - G0
-          }
-          print("length(G0)")
-          print(length(G0))
+          # cat("CHR ", CHR, "\n")
+          # print(bimPlink[Indexvector_forVarRatio[i] + 1, ])
+          # Duplicate allele frequency flip logic removed - already done above
+          # print("length(G0)")
+          # print(length(G0))
           # if(any(duplicated(obj.glmm.null$sampleID))){
           # 	G0 = G0[dupSampleIndex]
           # }
           NAset <- which(G0 == 0)
           AC <- sum(G0)
-          print("length(NAset)")
-          print(length(NAset))
+          # print("length(NAset)")
+          # print(length(NAset))
           indexInMarkerList <- indexInMarkerList + 1
           if ((CHR >= 1 & CHR <= 22 & AC > 0 & AC < length(G0)) | includeNonautoMarkersforVarRatio) {
             AF <- AC / (2 * Nnomissing)
@@ -1839,8 +1880,7 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
             # print(y[1:100])
 
 
-            set_isSparseGRM(useSparseGRMtoFitNULL)
-            set_useGRMtoFitNULL(useGRMtoFitNULL)
+            # These calls moved outside the loop for better performance
 
 
             Sigma_iG <- getSigma_G_multiV(W, tauVecNew, G, maxiterPCG, tolPCG, LOCO = FALSE)

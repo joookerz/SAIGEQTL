@@ -4713,27 +4713,55 @@ arma::fvec getPCG1ofSigmaAndVector_multiV(arma::fvec& wVec,  arma::fvec& tauVec,
 
             auto n = g_I_start_indices.n_elem - 1;
 
-            for (int j=0; j<n;j++) {
+            if (g_omp_num_threads > 1) {
+                omp_set_num_threads(g_omp_num_threads);
+                #pragma omp parallel for
+                for (int j=0; j<n; j++) {
 
-                size_t start = g_I_start_indices[j];
-                size_t end = g_I_start_indices[j+1];
+                    size_t start = g_I_start_indices[j];
+                    size_t end = g_I_start_indices[j+1];
 
-                float sum_S = 0;
-                float sum_delta_b = 0;
+                    float sum_S = 0;
+                    float sum_delta_b = 0;
 
-                for (size_t k=start; k<end; k++){
-                    sum_S += wVec(k);
-                    sum_delta_b += wVec(k) * bVec(k);
+                    for (size_t k=start; k<end; k++){
+                        sum_S += wVec(k);
+                        sum_delta_b += wVec(k) * bVec(k);
+                    }
+
+                    sum_S = 1 + tauVec(1) * (sum_S / tauVec(0));
+
+                    sum_delta_b /= tauVec(0);
+
+                    for (size_t k=start; k<end; k++){
+
+                        xVec(k) = (wVec(k) / tauVec(0))* bVec(k) - (tauVec(1)* ((wVec(k)/ tauVec(0)) * sum_delta_b)) / sum_S;
+
+                    }
                 }
+            } else {
+                for (int j=0; j<n; j++) {
 
-                sum_S = 1 + tauVec(1) * (sum_S / tauVec(0));
+                    size_t start = g_I_start_indices[j];
+                    size_t end = g_I_start_indices[j+1];
 
-                sum_delta_b /= tauVec(0);
+                    float sum_S = 0;
+                    float sum_delta_b = 0;
 
-                for (size_t k=start; k<end; k++){
+                    for (size_t k=start; k<end; k++){
+                        sum_S += wVec(k);
+                        sum_delta_b += wVec(k) * bVec(k);
+                    }
 
-                    xVec(k) = (wVec(k) / tauVec(0))* bVec(k) - (tauVec(1)* ((wVec(k)/ tauVec(0)) * sum_delta_b)) / sum_S;
+                    sum_S = 1 + tauVec(1) * (sum_S / tauVec(0));
 
+                    sum_delta_b /= tauVec(0);
+
+                    for (size_t k=start; k<end; k++){
+
+                        xVec(k) = (wVec(k) / tauVec(0))* bVec(k) - (tauVec(1)* ((wVec(k)/ tauVec(0)) * sum_delta_b)) / sum_S;
+
+                    }
                 }
 
            }
