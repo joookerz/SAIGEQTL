@@ -4712,59 +4712,65 @@ arma::fvec getPCG1ofSigmaAndVector_multiV(arma::fvec& wVec,  arma::fvec& tauVec,
         } else {
 
             auto n = g_I_start_indices.n_elem - 1;
+            
+            // Use OpenMP only if we have more than 1 thread and sufficient work to parallelize
+            bool use_parallel = (g_omp_num_threads > 1) && (n > 100);
 
-            if (g_omp_num_threads > 1) {
+#ifdef _OPENMP
+            if (use_parallel) {
                 omp_set_num_threads(g_omp_num_threads);
-                #pragma omp parallel for
-                for (int j=0; j<n; j++) {
-
+                
+                #pragma omp parallel for schedule(static)
+                for (size_t j = 0; j < n; j++) {
                     size_t start = g_I_start_indices[j];
                     size_t end = g_I_start_indices[j+1];
 
                     float sum_S = 0;
                     float sum_delta_b = 0;
 
-                    for (size_t k=start; k<end; k++){
+                    // Calculate sums for this group
+                    for (size_t k = start; k < end; k++){
                         sum_S += wVec(k);
                         sum_delta_b += wVec(k) * bVec(k);
                     }
 
                     sum_S = 1 + tauVec(1) * (sum_S / tauVec(0));
-
                     sum_delta_b /= tauVec(0);
 
-                    for (size_t k=start; k<end; k++){
-
-                        xVec(k) = (wVec(k) / tauVec(0))* bVec(k) - (tauVec(1)* ((wVec(k)/ tauVec(0)) * sum_delta_b)) / sum_S;
-
+                    // Update xVec for this group
+                    for (size_t k = start; k < end; k++){
+                        xVec(k) = (wVec(k) / tauVec(0)) * bVec(k) - 
+                                  (tauVec(1) * ((wVec(k) / tauVec(0)) * sum_delta_b)) / sum_S;
                     }
                 }
             } else {
-                for (int j=0; j<n; j++) {
-
+#endif
+                // Single-threaded execution or fallback when OpenMP is not available
+                for (size_t j = 0; j < n; j++) {
                     size_t start = g_I_start_indices[j];
                     size_t end = g_I_start_indices[j+1];
 
                     float sum_S = 0;
                     float sum_delta_b = 0;
 
-                    for (size_t k=start; k<end; k++){
+                    // Calculate sums for this group
+                    for (size_t k = start; k < end; k++){
                         sum_S += wVec(k);
                         sum_delta_b += wVec(k) * bVec(k);
                     }
 
                     sum_S = 1 + tauVec(1) * (sum_S / tauVec(0));
-
                     sum_delta_b /= tauVec(0);
 
-                    for (size_t k=start; k<end; k++){
-
-                        xVec(k) = (wVec(k) / tauVec(0))* bVec(k) - (tauVec(1)* ((wVec(k)/ tauVec(0)) * sum_delta_b)) / sum_S;
-
+                    // Update xVec for this group
+                    for (size_t k = start; k < end; k++){
+                        xVec(k) = (wVec(k) / tauVec(0)) * bVec(k) - 
+                                  (tauVec(1) * ((wVec(k) / tauVec(0)) * sum_delta_b)) / sum_S;
                     }
                 }
-
-           }
+#ifdef _OPENMP
+            }
+#endif
 
       }
 
@@ -7866,22 +7872,39 @@ arma::fvec getprodImatbVec(arma::fvec & bVec) {
     auto n = g_I_start_indices.n_elem - 1;
     arma::fvec resultVec(g_I_longl_mat.n_rows, arma::fill::zeros);
 
-    if (g_omp_num_threads > 1) {
+    // Use OpenMP only if we have more than 1 thread and sufficient work to parallelize
+    bool use_parallel = (g_omp_num_threads > 1) && (n > 100);
+    
+#ifdef _OPENMP
+    if (use_parallel) {
         omp_set_num_threads(g_omp_num_threads);
         
-	#pragma omp parallel for
-        for (int j = 0; j < n; j++) {
-	    float sum;
+        #pragma omp parallel for schedule(static)
+        for (size_t j = 0; j < n; j++) {
+            float sum = bVec[j];
             size_t start = g_I_start_indices[j];
             size_t end = g_I_start_indices[j + 1];
-            sum = bVec[j];
+            
+            // Each thread works on its own range of indices, preventing race conditions
             for (size_t k = start; k < end; k++) {
-		resultVec[k] = sum;  // This could still lead to overwrites if `k` is shared across threads
+                resultVec[k] = sum;
             }
         }
     } else {
-        	resultVec = g_I_longl_mat * bVec;
-    	}
+#endif
+        // Single-threaded execution or fallback when OpenMP is not available
+        for (size_t j = 0; j < n; j++) {
+            float sum = bVec[j];
+            size_t start = g_I_start_indices[j];
+            size_t end = g_I_start_indices[j + 1];
+            
+            for (size_t k = start; k < end; k++) {
+                resultVec[k] = sum;
+            }
+        }
+#ifdef _OPENMP
+    }
+#endif
 
     return resultVec;
 }

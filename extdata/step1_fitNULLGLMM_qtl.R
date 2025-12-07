@@ -1,14 +1,9 @@
-#!/usr/bin/env -S pixi run --manifest-path /app/pixi.toml Rscript
+#!/usr/bin/env Rscript
 
 options(stringsAsFactors = F)
 
 ## load R libraries
-
-library(SAIGEQTL)
-
 require(optparse) # install.packages("optparse")
-
-print(sessionInfo())
 
 ## set list of cmd line arguments
 option_list <- list(
@@ -257,14 +252,36 @@ option_list <- list(
   make_option("--isExportResiduals",
     type = "logical", default = FALSE,
     help = "Optional. Whether to export residual vector. [default, 'FALSE']"
+  ),
+  make_option("--varRatioBatchSize",
+    type = "integer", default = 1,
+    help = "Optional. Batch size for variance ratio estimation. Higher values use more memory but may be faster. Set to 1 for sequential processing (low memory), or >1 for batch processing. [default=1]"
+  ),
+  make_option("--library",
+    type = "character", default = "",
+    help = "Optional. Path to custom R library directory where SAIGEQTL package is installed. If not specified, uses default R library paths."
   )
 )
 
-
-## list of options
+# Parse options to get library path
 parser <- OptionParser(usage = "%prog [options]", option_list = option_list)
 args <- parse_args(parser, positional_arguments = 0)
 opt <- args$options
+
+# Set custom library path if provided
+if (!is.null(opt$library) && opt$library != "") {
+  .libPaths(c(opt$library, .libPaths()))
+  cat("Using custom library path:", opt$library, "\n")
+}
+
+if (!is.null(opt$library) && opt$library != "") {
+  library(SAIGEQTL, lib.loc = opt$library)
+} else {
+  library(SAIGEQTL)
+}
+
+print(sessionInfo())
+
 print(opt)
 
 covars <- strsplit(opt$covarColList, ",")[[1]]
@@ -294,73 +311,92 @@ if (BLASctl_installed) {
 }
 
 
-# set seed
+# Check if varRatioBatchSize parameter is supported in this version
+varRatioBatchSize_supported <- "varRatioBatchSize" %in% names(formals(fitNULLGLMM_multiV))
+
+# Debug: Print some key variables
+cat("covars:", covars, "\n")
+cat("qcovars:", qcovars, "\n") 
+cat("scovars:", scovars, "\n")
+
+# Prepare arguments list - remove empty/NULL values as we build it
+args_list <- list()
+
+# Add non-empty arguments only
+if (!is.null(opt$plinkFile) && opt$plinkFile != "") args_list$plinkFile <- opt$plinkFile
+if (!is.null(opt$bedFile) && opt$bedFile != "") args_list$bedFile <- opt$bedFile
+if (!is.null(opt$bimFile) && opt$bimFile != "") args_list$bimFile <- opt$bimFile
+if (!is.null(opt$famFile) && opt$famFile != "") args_list$famFile <- opt$famFile
+args_list$useSparseGRMtoFitNULL <- opt$useSparseGRMtoFitNULL
+if (!is.null(opt$sparseGRMFile) && opt$sparseGRMFile != "") args_list$sparseGRMFile <- opt$sparseGRMFile
+if (!is.null(opt$sparseGRMSampleIDFile) && opt$sparseGRMSampleIDFile != "") args_list$sparseGRMSampleIDFile <- opt$sparseGRMSampleIDFile
+args_list$phenoFile <- opt$phenoFile
+args_list$phenoCol <- opt$phenoCol
+args_list$isRemoveZerosinPheno <- opt$isRemoveZerosinPheno
+args_list$sampleIDColinphenoFile <- opt$sampleIDColinphenoFile
+if (!is.null(opt$cellIDColinphenoFile) && opt$cellIDColinphenoFile != "") args_list$cellIDColinphenoFile <- opt$cellIDColinphenoFile
+args_list$traitType <- opt$traitType
+args_list$outputPrefix <- opt$outputPrefix
+args_list$isCovariateOffset <- opt$isCovariateOffset
+args_list$nThreads <- opt$nThreads
+args_list$useSparseGRMforVarRatio <- opt$useSparseGRMforVarRatio
+args_list$invNormalize <- opt$invNormalize
+if (!is.null(covars) && length(covars) > 0 && !all(covars == "")) args_list$covarColList <- covars
+if (!is.null(qcovars) && length(qcovars) > 0 && !all(qcovars == "")) args_list$qCovarCol <- qcovars
+args_list$tol <- opt$tol
+args_list$maxiter <- opt$maxiter
+args_list$tolPCG <- opt$tolPCG
+args_list$maxiterPCG <- opt$maxiterPCG
+args_list$SPAcutoff <- opt$SPAcutoff
+args_list$numMarkersForVarRatio <- opt$numRandomMarkerforVarianceRatio
+args_list$skipModelFitting <- opt$skipModelFitting
+args_list$skipVarianceRatioEstimation <- opt$skipVarianceRatioEstimation
+args_list$memoryChunk <- opt$memoryChunk
+args_list$tauInit <- tauInit
+args_list$LOCO <- opt$LOCO
+args_list$isLowMemLOCO <- opt$isLowMemLOCO
+args_list$traceCVcutoff <- opt$traceCVcutoff
+args_list$nrun <- opt$nrun
+args_list$ratioCVcutoff <- opt$ratioCVcutoff
+if (!is.null(opt$outputPrefix_varRatio) && opt$outputPrefix_varRatio != "") args_list$outputPrefix_varRatio <- opt$outputPrefix_varRatio
+args_list$IsOverwriteVarianceRatioFile <- opt$IsOverwriteVarianceRatioFile
+args_list$relatednessCutoff <- opt$relatednessCutoff
+args_list$isCateVarianceRatio <- opt$isCateVarianceRatio
+args_list$cateVarRatioMinMACVecExclude <- cateVarRatioMinMACVecExclude
+args_list$cateVarRatioMaxMACVecInclude <- cateVarRatioMaxMACVecInclude
+args_list$isCovariateTransform <- opt$isCovariateTransform
+args_list$isDiagofKinSetAsOne <- opt$isDiagofKinSetAsOne
+args_list$minMAFforGRM <- opt$minMAFforGRM
+args_list$maxMissingRateforGRM <- opt$maxMissingRateforGRM
+args_list$minCovariateCount <- opt$minCovariateCount
+args_list$includeNonautoMarkersforVarRatio <- opt$includeNonautoMarkersforVarRatio
+if (!is.null(opt$sexCol) && opt$sexCol != "") args_list$sexCol <- opt$sexCol
+if (!is.null(opt$FemaleCode) && opt$FemaleCode != "") args_list$FemaleCode <- opt$FemaleCode
+args_list$FemaleOnly <- opt$FemaleOnly
+if (!is.null(opt$MaleCode) && opt$MaleCode != "") args_list$MaleCode <- opt$MaleCode
+args_list$MaleOnly <- opt$MaleOnly
+if (!is.null(opt$SampleIDIncludeFile) && opt$SampleIDIncludeFile != "") args_list$SampleIDIncludeFile <- opt$SampleIDIncludeFile
+if (!is.null(opt$VmatFilelist) && opt$VmatFilelist != "") args_list$VmatFilelist <- opt$VmatFilelist
+if (!is.null(opt$VmatSampleFilelist) && opt$VmatSampleFilelist != "") args_list$VmatSampleFilelist <- opt$VmatSampleFilelist
+if (!is.null(opt$longlCol) && opt$longlCol != "") args_list$longlCol <- opt$longlCol
+args_list$useGRMtoFitNULL <- opt$useGRMtoFitNULL
+if (!is.null(opt$offsetCol) && opt$offsetCol != "") args_list$offsetCol <- opt$offsetCol
+if (!is.null(opt$varWeightsCol) && opt$varWeightsCol != "") args_list$varWeightsCol <- opt$varWeightsCol
+if (!is.null(scovars) && length(scovars) > 0 && !all(scovars == "")) args_list$sampleCovarCol <- scovars
+args_list$isStoreSigma <- opt$isStoreSigma
+args_list$isShrinkModelOutput <- opt$isShrinkModelOutput
+args_list$isExportResiduals <- opt$isExportResiduals
+
+# Conditionally add varRatioBatchSize if supported
+if (varRatioBatchSize_supported) {
+  args_list$varRatioBatchSize <- opt$varRatioBatchSize
+}
+
+cat("Final number of arguments:", length(args_list), "\n")
+
+# Call the main function
 set.seed(1)
-fitNULLGLMM_multiV(
-  plinkFile = opt$plinkFile,
-  bedFile = opt$bedFile,
-  bimFile = opt$bimFile,
-  famFile = opt$famFile,
-  useSparseGRMtoFitNULL = opt$useSparseGRMtoFitNULL,
-  sparseGRMFile = opt$sparseGRMFile,
-  sparseGRMSampleIDFile = opt$sparseGRMSampleIDFile,
-  phenoFile = opt$phenoFile,
-  phenoCol = opt$phenoCol,
-  isRemoveZerosinPheno = opt$isRemoveZerosinPheno,
-  sampleIDColinphenoFile = opt$sampleIDColinphenoFile,
-  cellIDColinphenoFile = opt$cellIDColinphenoFile,
-  traitType = opt$traitType,
-  outputPrefix = opt$outputPrefix,
-  isCovariateOffset = opt$isCovariateOffset,
-  nThreads = opt$nThreads,
-  useSparseGRMforVarRatio = opt$useSparseGRMforVarRatio,
-  invNormalize = opt$invNormalize,
-  covarColList = covars,
-  qCovarCol = qcovars,
-  tol = opt$tol,
-  maxiter = opt$maxiter,
-  tolPCG = opt$tolPCG,
-  maxiterPCG = opt$maxiterPCG,
-  SPAcutoff = opt$SPAcutoff,
-  numMarkersForVarRatio = opt$numRandomMarkerforVarianceRatio,
-  skipModelFitting = opt$skipModelFitting,
-  skipVarianceRatioEstimation = opt$skipVarianceRatioEstimation,
-  memoryChunk = opt$memoryChunk,
-  tauInit = tauInit,
-  LOCO = opt$LOCO,
-  isLowMemLOCO = opt$isLowMemLOCO,
-  traceCVcutoff = opt$traceCVcutoff,
-  nrun = opt$nrun,
-  ratioCVcutoff = opt$ratioCVcutoff,
-  outputPrefix_varRatio = opt$outputPrefix_varRatio,
-  IsOverwriteVarianceRatioFile = opt$IsOverwriteVarianceRatioFile,
-  relatednessCutoff = opt$relatednessCutoff,
-  isCateVarianceRatio = opt$isCateVarianceRatio,
-  cateVarRatioMinMACVecExclude = cateVarRatioMinMACVecExclude,
-  cateVarRatioMaxMACVecInclude = cateVarRatioMaxMACVecInclude,
-  isCovariateTransform = opt$isCovariateTransform,
-  isDiagofKinSetAsOne = opt$isDiagofKinSetAsOne,
-  minMAFforGRM = opt$minMAFforGRM,
-  maxMissingRateforGRM = opt$maxMissingRateforGRM,
-  minCovariateCount = opt$minCovariateCount,
-  includeNonautoMarkersforVarRatio = opt$includeNonautoMarkersforVarRatio,
-  sexCol = opt$sexCol,
-  FemaleCode = opt$FemaleCode,
-  FemaleOnly = opt$FemaleOnly,
-  MaleCode = opt$MaleCode,
-  MaleOnly = opt$MaleOnly,
-  SampleIDIncludeFile = opt$SampleIDIncludeFile,
-  VmatFilelist = opt$VmatFilelist,
-  VmatSampleFilelist = opt$VmatSampleFilelist,
-  longlCol = opt$longlCol,
-  useGRMtoFitNULL = opt$useGRMtoFitNULL,
-  offsetCol = opt$offsetCol,
-  varWeightsCol = opt$varWeightsCol,
-  sampleCovarCol = scovars,
-  isStoreSigma = opt$isStoreSigma,
-  isShrinkModelOutput = opt$isShrinkModelOutput,
-  isExportResiduals = opt$isExportResiduals
-)
+do.call(fitNULLGLMM_multiV, args_list)
 
 if (!opt$isCovariateOffset) {
   my_env <- new.env()
@@ -370,72 +406,14 @@ if (!opt$isCovariateOffset) {
   if (sum(modglmm$theta[2:length(modglmm$theta)]) <= 0 || sum(modglmm$theta[2:length(modglmm$theta)]) > 1) {
     cat("All variance component parameter estiamtes are out of bounds, now try including all covariates as offset\n")
     opt$isCovariateOffset <- TRUE
+    
+    # Prepare offset args list with updated outputPrefix
+    offset_args_list <- args_list
+    offset_args_list$outputPrefix <- paste0(opt$outputPrefix, ".offset")
+    offset_args_list$isCovariateOffset <- opt$isCovariateOffset
+    
     set.seed(1)
-    fitNULLGLMM_multiV(
-      plinkFile = opt$plinkFile,
-      bedFile = opt$bedFile,
-      bimFile = opt$bimFile,
-      famFile = opt$famFile,
-      useSparseGRMtoFitNULL = opt$useSparseGRMtoFitNULL,
-      sparseGRMFile = opt$sparseGRMFile,
-      sparseGRMSampleIDFile = opt$sparseGRMSampleIDFile,
-      phenoFile = opt$phenoFile,
-      phenoCol = opt$phenoCol,
-      isRemoveZerosinPheno = opt$isRemoveZerosinPheno,
-      sampleIDColinphenoFile = opt$sampleIDColinphenoFile,
-      cellIDColinphenoFile = opt$cellIDColinphenoFile,
-      traitType = opt$traitType,
-      outputPrefix = paste0(opt$outputPrefix, ".offset"),
-      isCovariateOffset = opt$isCovariateOffset,
-      nThreads = opt$nThreads,
-      useSparseGRMforVarRatio = opt$useSparseGRMforVarRatio,
-      invNormalize = opt$invNormalize,
-      covarColList = covars,
-      qCovarCol = qcovars,
-      tol = opt$tol,
-      maxiter = opt$maxiter,
-      tolPCG = opt$tolPCG,
-      maxiterPCG = opt$maxiterPCG,
-      SPAcutoff = opt$SPAcutoff,
-      numMarkersForVarRatio = opt$numRandomMarkerforVarianceRatio,
-      skipModelFitting = opt$skipModelFitting,
-      skipVarianceRatioEstimation = opt$skipVarianceRatioEstimation,
-      memoryChunk = opt$memoryChunk,
-      tauInit = tauInit,
-      LOCO = opt$LOCO,
-      isLowMemLOCO = opt$isLowMemLOCO,
-      traceCVcutoff = opt$traceCVcutoff,
-      nrun = opt$nrun,
-      ratioCVcutoff = opt$ratioCVcutoff,
-      outputPrefix_varRatio = opt$outputPrefix_varRatio,
-      IsOverwriteVarianceRatioFile = opt$IsOverwriteVarianceRatioFile,
-      relatednessCutoff = opt$relatednessCutoff,
-      isCateVarianceRatio = opt$isCateVarianceRatio,
-      cateVarRatioMinMACVecExclude = cateVarRatioMinMACVecExclude,
-      cateVarRatioMaxMACVecInclude = cateVarRatioMaxMACVecInclude,
-      isCovariateTransform = opt$isCovariateTransform,
-      isDiagofKinSetAsOne = opt$isDiagofKinSetAsOne,
-      minMAFforGRM = opt$minMAFforGRM,
-      maxMissingRateforGRM = opt$maxMissingRateforGRM,
-      minCovariateCount = opt$minCovariateCount,
-      includeNonautoMarkersforVarRatio = opt$includeNonautoMarkersforVarRatio,
-      sexCol = opt$sexCol,
-      FemaleCode = opt$FemaleCode,
-      FemaleOnly = opt$FemaleOnly,
-      MaleCode = opt$MaleCode,
-      MaleOnly = opt$MaleOnly,
-      SampleIDIncludeFile = opt$SampleIDIncludeFile,
-      VmatFilelist = opt$VmatFilelist,
-      VmatSampleFilelist = opt$VmatSampleFilelist,
-      longlCol = opt$longlCol,
-      useGRMtoFitNULL = opt$useGRMtoFitNULL,
-      offsetCol = opt$offsetCol,
-      varWeightsCol = opt$varWeightsCol,
-      sampleCovarCol = scovars,
-      isStoreSigma = opt$isStoreSigma,
-      isShrinkModelOutput = opt$isShrinkModelOutput,
-      isExportResiduals = opt$isExportResiduals
-    )
+    do.call(fitNULLGLMM_multiV, offset_args_list)
     my_env <- new.env()
     load(paste0(opt$outputPrefix, ".offset.rda"), envir = my_env)
     modglmm <- my_env$modglmm
