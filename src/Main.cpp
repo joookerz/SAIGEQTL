@@ -4707,7 +4707,7 @@ arma::fvec getPCG1ofSigmaAndVector_multiV(arma::fvec& wVec,  arma::fvec& tauVec,
 
         if (tauVec(1) == 0) {
 
-            xVec = (wVec / tauVec(0))* bVec;
+            xVec = (wVec / tauVec(0)) % bVec;
 
         } else {
 
@@ -4900,20 +4900,20 @@ int nrun, int maxiterPCG, float tolPCG, float tol, float traceCVcutoff, bool LOC
         arma::uvec idxtau = arma::find(fixtauVec==0);
         arma::fvec tau0 = tauVec;
 
-        std::cout << "check 1" << std::endl;
+        //std::cout << "check 1" << std::endl;
         Rcpp::List re = getAIScore_multiV(Yvec, Xmat,wVec,  tauVec, fixtauVec, Sigma_iY, Sigma_iX, cov, nrun, maxiterPCG, tolPCG, traceCVcutoff, LOCO);
 
-        std::cout << "check 2" << std::endl;
+        //std::cout << "check 2" << std::endl;
 
         arma::fvec YPAPY = re["YPAPY"];
         arma::fvec Trace = re["Trace"];
         arma::fvec score1 = YPAPY - Trace;
-        score1.print("score1");
-        YPAPY.print("YPAPY");
-        Trace.print("Trace");
+        //score1.print("score1");
+        //YPAPY.print("YPAPY");
+        //Trace.print("Trace");
         arma::fmat AI1 = re["AI"];
         arma::fvec Dtau(AI1.n_cols);
-        score1.print("score");
+        //score1.print("score");
         try{
                 Dtau = arma::solve(AI1, score1, arma::solve_opts::allow_ugly);
         }
@@ -4987,8 +4987,8 @@ int nrun, int maxiterPCG, float tolPCG, float tol, float traceCVcutoff, bool LOC
                 tauupdateidx = tauUpdateValue(tauVec);
                 float step = 1.0;
                  while ( arma::any(tauVec.elem(g_covarianceidxMat_notcol1) < 0.0) || tauVec(0) < 0.0 || arma::any(tauupdateidx == 0)){
-                 tauVec.print("tauVec");
-                 tauupdateidx.print("tauupdateidx");
+                 //tauVec.print("tauVec");
+                 //tauupdateidx.print("tauupdateidx");
                         step = step*0.5;
                         tauVec = tau0 + step*Dtau_k1;
                         tauVec.elem( arma::find(tauVec < tol && tau0 < tol) ).zeros();
@@ -5026,9 +5026,9 @@ int nrun, int maxiterPCG, float tolPCG, float tol, float traceCVcutoff, bool LOC
 // [[Rcpp::export]]
 arma::fvec getMeanDiagofKmat(bool LOCO){
 
-		                  std::cout << "Here3a" << std::endl;	
+		  //                std::cout << "Here3a" << std::endl;	
 	arma::fvec mean_diag_kins_vec(g_num_Kmat - 1);
-		                  std::cout << "Here3b" << std::endl;	
+		  //                std::cout << "Here3b" << std::endl;	
 
         arma::sp_vec diagVecG0;
         arma::sp_fvec diagVecV0;
@@ -5071,11 +5071,11 @@ arma::fvec getMeanDiagofKmat(bool LOCO){
                 mean_diag_kins_vec(0) = arma::mean(diagVec);
                 tauind = tauind + 1;
             }*/
-		                  std::cout << "Here3c" << std::endl;	
-		std::cout << "g_T_longl_mat.n_rows " << g_T_longl_mat.n_rows << std::endl;
+		   //               std::cout << "Here3c" << std::endl;	
+		//std::cout << "g_T_longl_mat.n_rows " << g_T_longl_mat.n_rows << std::endl;
             if(g_T_longl_mat.n_rows > 0){
-		std::cout << "g_isGRM " << g_isGRM << std::endl;
-		std::cout << "g_isSparseGRM " << g_isSparseGRM << std::endl;
+		//std::cout << "g_isGRM " << g_isGRM << std::endl;
+		//std::cout << "g_isSparseGRM " << g_isSparseGRM << std::endl;
 
 	        if(g_isGRM && g_isSparseGRM){
 			//g_spGRM.print("g_spGRM");		
@@ -5090,51 +5090,51 @@ arma::fvec getMeanDiagofKmat(bool LOCO){
                   diagVecG_T = diagVecG_IT % g_T_longl_vec;
                   diagVecG_IT = 2 * diagVecG_IT;
                   diagVec = diagVecG_IT;
-                  std::cout << "Here1" << std::endl;
+                  //std::cout << "Here1" << std::endl;
                   mean_diag_kins_vec(tauind) = arma::mean(diagVec);
                   tauind = tauind + 1;
-                  std::cout << "Here2" << std::endl;
+                  //std::cout << "Here2" << std::endl;
                   diagVec = diagVecG_T;
-		  std::cout << "tauind " << tauind << std::endl;
+		  //std::cout << "tauind " << tauind << std::endl;
                   mean_diag_kins_vec(tauind) = arma::mean(diagVec);
-                  std::cout << "Here2" << std::endl;
+                  //std::cout << "Here2" << std::endl;
                   tauind = tauind + 1;
 		}  
 
                   //diagVecV = diagVecG;
-		std::cout << "g_n_unique " << g_n_unique << std::endl;
+		  //std::cout << "g_n_unique " << g_n_unique << std::endl;
                   diagVecV.ones(g_n_unique);
 		  //diagVecV.print("diagVecV");
                   diagVecV_I = diagVecV.elem(g_I_longl_vec);
                   diagVec = diagVecV_I;
                   mean_diag_kins_vec(tauind) = arma::mean(diagVec);
-		  std::cout << "Here2a" << std::endl;
+		  //std::cout << "Here2a" << std::endl;
                   tauind = tauind + 1;
                   diagVecV_IT = diagVecV_I % g_T_longl_vec;
                   diagVecV_T = diagVecV_IT % g_T_longl_vec;
                   diagVecV_IT = 2 * diagVecV_IT;
                   diagVec = diagVecV_IT;
-		  std::cout << "Here2b" << std::endl;
+		  //std::cout << "Here2b" << std::endl;
 
                   mean_diag_kins_vec(tauind) = arma::mean(diagVec);
                   tauind = tauind + 1;
-                  std::cout << "Here2" << std::endl;
+                  //std::cout << "Here2" << std::endl;
                   diagVec = diagVecV_T;
                   mean_diag_kins_vec(tauind) = arma::mean(diagVec);
                   tauind = tauind + 1;
 
 
            }else{
-		                  std::cout << "Here3d" << std::endl;	
+		 //                 std::cout << "Here3d" << std::endl;	
 		if(g_isGRM && g_isSparseGRM){	
-		                  std::cout << "Here3e" << std::endl;	
+		 //                 std::cout << "Here3e" << std::endl;	
                   diagVecG = arma::diagvec(g_spGRM);
                   diagVecG_I = diagVecG.elem(g_I_longl_vec);
                   diagVec = diagVecG_I;
                   mean_diag_kins_vec(0) = arma::mean(diagVec);
                   tauind = tauind + 1;
 	  	}
-		                  std::cout << "Here3" << std::endl;	
+		 //                 std::cout << "Here3" << std::endl;	
 		  diagVecV = diagVecG;
                   diagVecV.ones();
                   diagVecV_I = diagVecV.elem(g_I_longl_vec);
@@ -5217,7 +5217,7 @@ arma::ivec tauUpdateValue(arma::fvec & t_tau0Vec){
 Rcpp::List getAIScore_multiV(arma::fvec& Yvec, arma::fmat& Xmat, arma::fvec& wVec,  arma::fvec& tauVec, arma::ivec & fixtauVec,
 arma::fvec& Sigma_iY, arma::fmat & Sigma_iX, arma::fmat & cov,
 int nrun, int maxiterPCG, float tolPCG, float traceCVcutoff, bool LOCO){
-	fixtauVec.print("fixtauVec");
+	//fixtauVec.print("fixtauVec");
 
         int q2 = arma::sum(fixtauVec==0);
         arma::uvec idxtau = arma::find(fixtauVec==0);
@@ -5286,7 +5286,7 @@ int nrun, int maxiterPCG, float tolPCG, float traceCVcutoff, bool LOCO){
                         GRM_I_bvec = getCrossprodMatAndKin(Ibvec, LOCO);
                 }
 
-                std::cout << "g_I_longl_mat.n_rows " << g_I_longl_mat.n_rows << std::endl;
+               //std::cout << "g_I_longl_mat.n_rows " << g_I_longl_mat.n_rows << std::endl;
                if(g_T_longl_mat.n_rows == 0){
                   for(int i=0; i<k1; i++){
                     if(fixtauVec(i) == 0){
@@ -5422,16 +5422,16 @@ int nrun, int maxiterPCG, float tolPCG, float traceCVcutoff, bool LOCO){
                 }
         }
 
-        AI.print("AI");
-	YPAPY.print("YPAPY");
+        //AI.print("AI");
+	//YPAPY.print("YPAPY");
         arma::fmat AI_update = AI.submat(idxtau, idxtau);
         arma::fvec YPAPY_update = YPAPY.elem(idxtau);
-	YPAPY.print("YPAPY");
+	//YPAPY.print("YPAPY");
 
         //vector with length=q2
         Trace = GetTrace_multiV(Sigma_iX, Xmat, wVec, tauVec, fixtauVec, cov, nrun, maxiterPCG, tolPCG, traceCVcutoff, LOCO);
         //YPAPY_update.print("YPAPY_update");
-        Trace.print("Trace");
+        //Trace.print("Trace");
         //arma::fvec PAPY_1 = getPCG1ofSigmaAndVector_multiV(wVec, tauVec, APY, maxiterPCG, tolPCG);
         //arma::fvec PAPY = PAPY_1 - Sigma_iX * (cov1 * (Sigma_iXt * PAPY_1));
         return Rcpp::List::create(Named("YPAPY") = YPAPY_update, Named("Trace") = Trace,Named("PY") = PY1,Named("AI") = AI_update);
@@ -5447,7 +5447,7 @@ arma::fvec GetTrace_multiV(arma::fmat Sigma_iX, arma::fmat& Xmat, arma::fvec& wV
         int q2 = arma::sum(fixtauVec==0);
         arma::uvec idxtau = arma::find(fixtauVec==0);
 
-        idxtau.print("idxtau");
+        //idxtau.print("idxtau");
 
         arma::fmat Sigma_iXt = Sigma_iX.t();
         int Nnomissing = wVec.n_elem;;
@@ -5714,7 +5714,7 @@ arma::fvec GetTrace_multiV(arma::fmat Sigma_iX, arma::fmat& Xmat, arma::fvec& wV
                 } // end for i
                 temp_mat_update = temp_mat.cols(idxtau);
 
-                std::cout << "dim temp_mat_update" << temp_mat_update.n_rows << " " << temp_mat_update.n_cols << std::endl;;
+                //std::cout << "dim temp_mat_update" << temp_mat_update.n_rows << " " << temp_mat_update.n_cols << std::endl;;
                 // update trace cv vector
                 for(int k=0; k<q2; k++){
                         temp_vec = temp_mat_update.col(k);
