@@ -5777,10 +5777,10 @@ Rcpp::List getCoefficients_multiV(arma::fvec& Yvec, arma::fmat& Xmat, arma::fvec
 
         int Nnomissing = wVec.n_elem;
         arma::fvec Sigma_iY;
-	std::cout << "before Sigma_iY" << std::endl;
-	std::cout << "Yvec.n_elem " << Yvec.n_elem << std::endl;
+	//std::cout << "before Sigma_iY" << std::endl;
+	//std::cout << "Yvec.n_elem " << Yvec.n_elem << std::endl;
         Sigma_iY = getPCG1ofSigmaAndVector_multiV(wVec, tauVec, Yvec, maxiterPCG, tolPCG, LOCO);
-        std::cout << "after Sigma_iY" << std::endl;
+        //std::cout << "after Sigma_iY" << std::endl;
         int colNumX = Xmat.n_cols;
         arma::fmat Sigma_iX(Nnomissing,colNumX);
         arma::fvec XmatVecTemp;
