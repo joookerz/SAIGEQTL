@@ -752,6 +752,10 @@ if(FALSE){
   }
       start_5_b <- proc.time()
 
+  # Pre-compute column indices to avoid repeated which() calls  
+  offset_idx <- if(length(offsetCol) > 0) match(offsetCol, colnames(data.new)) else NA
+  pheno_idx <- match(phenoCol, colnames(dataMerge_sort))
+
   if (traitType == "binary") {
     if (length(offsetCol) == 0) {
       modwitcov <- glm(formula.new,
@@ -823,10 +827,6 @@ if(FALSE){
   }
 
   data.new$covoffset <- covoffset
-
-  # Pre-compute column indices to avoid repeated which() calls  
-  offset_idx <- if(length(offsetCol) > 0) match(offsetCol, colnames(data.new)) else NA
-  pheno_idx <- match(phenoCol, colnames(dataMerge_sort))
 
       start_6 <- proc.time()
   if (useSparseGRMtoFitNULL | useSparseGRMforVarRatio) {
