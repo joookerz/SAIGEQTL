@@ -2062,10 +2062,10 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
         }  # End of while(numTestedMarker < numMarkers0)
 
 
-        print("varRatio_NULL_vec")
-        print(varRatio_NULL_vec)
-        print("varRatio_NULL_noXadj_vec")
-        print(varRatio_NULL_noXadj_vec)
+        #print("varRatio_NULL_vec")
+        #print(varRatio_NULL_vec)
+        #print("varRatio_NULL_noXadj_vec")
+        #print(varRatio_NULL_noXadj_vec)
 
         # ratioCV = calCV(varRatio_NULL_vec)
         ratioCV <- calCV(varRatio_NULL_noXadj_vec)
@@ -2086,19 +2086,19 @@ extractVarianceRatio_multiV <- function(obj.glmm.null,
       } # end of while(ratioCV > ratioCVcutoff)
 
       if (length(varRatio_sparseGRM_vec) > 0) {
-        cat("varRatio_sparseGRM_vec\n")
-        print(varRatio_sparseGRM_vec)
+        #cat("varRatio_sparseGRM_vec\n")
+        #print(varRatio_sparseGRM_vec)
 
         varRatio_sparse <- mean(varRatio_sparseGRM_vec)
-        cat("varRatio_sparse", varRatio_sparse, "\n")
+        #cat("varRatio_sparse", varRatio_sparse, "\n")
         varRatioTable <- rbind(varRatioTable, c(varRatio_sparse, "sparse", k))
       }
       varRatio_null <- mean(varRatio_NULL_vec)
       varRatio_null_sample <- mean(varRatio_NULL_sample_vec)
-      cat("varRatio_null", varRatio_null, "\n")
+      #cat("varRatio_null", varRatio_null, "\n")
 
       varRatio_null_noXadj <- mean(varRatio_NULL_noXadj_vec)
-      cat("varRatio_null_noXadj", varRatio_null_noXadj, "\n")
+      #cat("varRatio_null_noXadj", varRatio_null_noXadj, "\n")
 
       if (!is.null(obj.glmm.null$eMat)) {
         varRatio_NULL_eg_vec <- as.vector(colMeans(varRatio_NULL_eg_mat))
