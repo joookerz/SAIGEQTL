@@ -394,6 +394,38 @@ if (varRatioBatchSize_supported) {
 
 cat("Final number of arguments:", length(args_list), "\n")
 
+# Function to remove all output files when convergence fails
+remove_failed_output_files <- function(output_prefix, output_prefix_varRatio = "") {
+  files_to_remove <- c(
+    paste0(output_prefix, ".rda"),
+    paste0(output_prefix, ".varianceRatio.txt")
+  )
+  
+  # Add variance ratio file with alternative prefix if specified
+  if (output_prefix_varRatio != "" && output_prefix_varRatio != output_prefix) {
+    files_to_remove <- c(files_to_remove, paste0(output_prefix_varRatio, ".varianceRatio.txt"))
+  }
+  
+  removed_files <- c()
+  for (file_path in files_to_remove) {
+    if (file.exists(file_path)) {
+      tryCatch({
+        file.remove(file_path)
+        removed_files <- c(removed_files, file_path)
+        cat(sprintf("Removed failed output file: %s\n", file_path))
+      }, error = function(e) {
+        cat(sprintf("Warning: Could not remove file %s: %s\n", file_path, e$message))
+      })
+    }
+  }
+  
+  if (length(removed_files) > 0) {
+    cat(sprintf("Cleaned up %d failed output files\n", length(removed_files)))
+  }
+  
+  return(removed_files)
+}
+
 # Function to check model convergence status and write status file
 check_convergence_and_write_status <- function(output_prefix, args_used, package_version, final_status = NULL) {
   status_file <- paste0(output_prefix, ".status.txt")
@@ -465,6 +497,12 @@ check_convergence_and_write_status <- function(output_prefix, args_used, package
   if (!is.null(final_status)) {
     status_info$convergence_status <- final_status$status
     status_info$convergence_details <- final_status$details
+    # If final status indicates failure, ensure no output files remain
+    if (final_status$status == "FAILED") {
+      remove_failed_output_files(output_prefix, ifelse("outputPrefix_varRatio" %in% names(args_used), args_used$outputPrefix_varRatio, ""))
+      status_info$final_model_file <- ""
+      status_info$variance_ratio_file <- ""
+    }
   }
   
   # Write status file
@@ -510,6 +548,8 @@ tryCatch({
   message("Initial model failed with error: ", e$message)
   initial_error <<- e$message
   fit_success <<- FALSE  # Track failure
+  # Clean up any partial output files created during failed attempt
+  remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)
 })
 
 if(fit_success){
@@ -527,15 +567,7 @@ if(fit_success){
       cat("Retrying with all covariates as offset...\n")
       
       # Remove failed initial model files
-      file.remove(paste0(opt$outputPrefix, ".rda"))
-      var_ratio_file1 <- paste0(opt$outputPrefix, ".varianceRatio.txt")
-      var_ratio_file2 <- paste0(opt$outputPrefix_varRatio, ".varianceRatio.txt")
-      if (file.exists(var_ratio_file1)) {
-        file.remove(var_ratio_file1)
-      }
-      if (opt$outputPrefix_varRatio != "" && file.exists(var_ratio_file2)) {
-        file.remove(var_ratio_file2)
-      }
+      remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)
       
       # Retry with offset
       opt$isCovariateOffset <- TRUE
@@ -547,6 +579,8 @@ if(fit_success){
       }, error = function(e) {
         message("Offset model also failed with error: ", e$message)
         fit_success <<- FALSE
+        # Clean up any partial output files from failed retry
+        remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)
       })
     }
   } else {
@@ -561,21 +595,15 @@ if(fit_success){
       args_list$maxiter <- opt$maxiter
       
       # Remove failed files before retry
-      file.remove(paste0(opt$outputPrefix, ".rda"))
-      var_ratio_file1 <- paste0(opt$outputPrefix, ".varianceRatio.txt")
-      var_ratio_file2 <- paste0(opt$outputPrefix_varRatio, ".varianceRatio.txt")
-      if (file.exists(var_ratio_file1)) {
-        file.remove(var_ratio_file1)
-      }
-      if (opt$outputPrefix_varRatio != "" && file.exists(var_ratio_file2)) {
-        file.remove(var_ratio_file2)
-      }
+      remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)
       
       tryCatch({
         do.call(fitNULLGLMM_multiV, args_list)
       }, error = function(e) {
         message("Retry with increased iterations also failed: ", e$message)
         fit_success <<- FALSE
+        # Clean up any partial output files from failed retry
+        remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)
       })
     }
   }
@@ -593,6 +621,8 @@ if(fit_success){
     }, error = function(e) {
       message("Offset model also failed with error: ", e$message)
       fit_success <<- FALSE
+      # Clean up any partial output files from failed offset attempt
+      remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)
     })
   }
 }
@@ -606,21 +636,23 @@ final_convergence_check <- function() {
       load(rda_file, envir = my_env)
       modglmm <- my_env$modglmm
       
-      if (!is.null(modglmm) && !modglmm$converged) {
-        cat("Final check: Model did not converge. Removing output files.\n")
-        file.remove(rda_file)
+      if (!is.null(modglmm)) {
+        # Check both convergence flag and variance component bounds
+        theta_sum <- sum(modglmm$theta[2:length(modglmm$theta)])
+        theta_valid <- (theta_sum > 0 && theta_sum <= 1)
         
-        # Remove variance ratio file
-        var_ratio_file1 <- paste0(opt$outputPrefix, ".varianceRatio.txt")
-        var_ratio_file2 <- paste0(opt$outputPrefix_varRatio, ".varianceRatio.txt")
-        if (file.exists(var_ratio_file1)) {
-          file.remove(var_ratio_file1)
+        if (!modglmm$converged || !theta_valid) {
+          cat("Final check: Model convergence failed (converged:", modglmm$converged, ", theta_sum:", theta_sum, "). Removing output files.\n")
+          remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)
+          
+          details_msg <- sprintf("Model failed (converged: %s, theta_sum: %.6f) and output files removed", 
+                               modglmm$converged, theta_sum)
+          return(list(status = "FAILED", details = details_msg))
         }
-        if (opt$outputPrefix_varRatio != "" && file.exists(var_ratio_file2)) {
-          file.remove(var_ratio_file2)
-        }
-        
-        return(list(status = "FAILED", details = "Model failed to converge and output files removed"))
+      } else {
+        cat("Final check: Model object not found. Removing output files.\n")
+        remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)
+        return(list(status = "FAILED", details = "Model object not found and output files removed"))
       }
       return(NULL)
     }, error = function(e) {
@@ -637,6 +669,9 @@ cat("\n=== Generating Final Status Report ===\n")
 
 # Handle case where initial fitting completely failed
 if (!fit_success && !is.null(initial_error)) {
+  # Ensure all output files are cleaned up for complete failure
+  remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)
+  
   final_status <- list(
     status = "FAILED", 
     details = paste("Initial model fitting failed with error:", initial_error)
