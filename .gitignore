@@ -22,3 +22,10 @@ extdata/time.var.txt
 R/*.log
 R/*.lo
 R/.nfs00000013331217950004b123
+SAIGEQTL_DEVELOPMENT_WORKFLOW.md
+README_TESTING.md
+test_output/
+test_output/compare_outputs.R
+*.log
+.saigeqtl_config
+CLAUDE.md
