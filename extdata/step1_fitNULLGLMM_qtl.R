@@ -394,55 +394,273 @@ if (varRatioBatchSize_supported) {
 
 cat("Final number of arguments:", length(args_list), "\n")
 
+# Function to check model convergence status and write status file
+check_convergence_and_write_status <- function(output_prefix, args_used, package_version, final_status = NULL) {
+  status_file <- paste0(output_prefix, ".status.txt")
+  
+  # Initialize status information
+  status_info <- list(
+    timestamp = Sys.time(),
+    package_version = package_version,
+    convergence_status = "UNKNOWN",
+    convergence_details = "",
+    final_model_file = "",
+    variance_ratio_file = "",
+    arguments_used = args_used
+  )
+  
+  # Check if model file exists and examine convergence
+  rda_file <- paste0(output_prefix, ".rda")
+  if (file.exists(rda_file)) {
+    tryCatch({
+      my_env <- new.env()
+      load(rda_file, envir = my_env)
+      modglmm <- my_env$modglmm
+      
+      if (!is.null(modglmm)) {
+        # Check convergence flag
+        model_converged <- modglmm$converged
+        
+        # Check variance component bounds
+        theta_valid <- TRUE
+        theta_sum <- sum(modglmm$theta[2:length(modglmm$theta)])
+        if (theta_sum <= 0 || theta_sum > 1) {
+          theta_valid <- FALSE
+        }
+        
+        # Determine overall status
+        if (model_converged && theta_valid) {
+          status_info$convergence_status <- "SUCCESS"
+          status_info$convergence_details <- sprintf("Model converged successfully. Theta sum: %.6f", theta_sum)
+        } else if (!model_converged) {
+          status_info$convergence_status <- "FAILED"
+          status_info$convergence_details <- sprintf("Model failed to converge. Theta sum: %.6f", theta_sum)
+        } else {
+          status_info$convergence_status <- "FAILED"
+          status_info$convergence_details <- sprintf("Variance components out of bounds. Theta sum: %.6f", theta_sum)
+        }
+        
+        status_info$final_model_file <- rda_file
+        
+        # Check for variance ratio file
+        var_ratio_file <- paste0(output_prefix, ".varianceRatio.txt")
+        if (file.exists(var_ratio_file)) {
+          status_info$variance_ratio_file <- var_ratio_file
+        }
+        
+      } else {
+        status_info$convergence_status <- "FAILED"
+        status_info$convergence_details <- "Model object not found in .rda file"
+      }
+    }, error = function(e) {
+      status_info$convergence_status <- "FAILED"
+      status_info$convergence_details <- paste("Error loading model:", e$message)
+    })
+  } else {
+    status_info$convergence_status <- "FAILED"
+    status_info$convergence_details <- "Model .rda file not found"
+  }
+  
+  # Override with final status if provided
+  if (!is.null(final_status)) {
+    status_info$convergence_status <- final_status$status
+    status_info$convergence_details <- final_status$details
+  }
+  
+  # Write status file
+  cat("=== SAIGEQTL Step 1 Analysis Status ===\n", file = status_file)
+  cat(sprintf("Timestamp: %s\n", status_info$timestamp), file = status_file, append = TRUE)
+  cat(sprintf("SAIGEQTL Version: %s\n", status_info$package_version), file = status_file, append = TRUE)
+  cat(sprintf("Convergence Status: %s\n", status_info$convergence_status), file = status_file, append = TRUE)
+  cat(sprintf("Details: %s\n", status_info$convergence_details), file = status_file, append = TRUE)
+  cat(sprintf("Final Model File: %s\n", ifelse(status_info$final_model_file != "", status_info$final_model_file, "None")), file = status_file, append = TRUE)
+  cat(sprintf("Variance Ratio File: %s\n", ifelse(status_info$variance_ratio_file != "", status_info$variance_ratio_file, "None")), file = status_file, append = TRUE)
+  cat("\n=== Arguments Used ===\n", file = status_file, append = TRUE)
+  
+  # Write all arguments
+  for (arg_name in names(status_info$arguments_used)) {
+    arg_value <- status_info$arguments_used[[arg_name]]
+    if (is.vector(arg_value) && length(arg_value) > 1) {
+      arg_value <- paste(arg_value, collapse = ",")
+    }
+    cat(sprintf("%s: %s\n", arg_name, arg_value), file = status_file, append = TRUE)
+  }
+  
+  cat(sprintf("\nStatus file written to: %s\n", status_file))
+  return(status_info)
+}
+
+# Get SAIGEQTL version
+package_version <- tryCatch({
+  as.character(packageVersion("SAIGEQTL"))
+}, error = function(e) {
+  "Unknown"
+})
+
+cat(sprintf("SAIGEQTL Version: %s\n", package_version))
+
 # Call the main function
 set.seed(1)
-do.call(fitNULLGLMM_multiV, args_list)
 
-if (!opt$isCovariateOffset) {
-  my_env <- new.env()
-  load(paste0(opt$outputPrefix, ".rda"), envir = my_env)
-  modglmm <- my_env$modglmm
-  print(modglmm$theta)
-  if (sum(modglmm$theta[2:length(modglmm$theta)]) <= 0 || sum(modglmm$theta[2:length(modglmm$theta)]) > 1) {
-    cat("All variance component parameter estiamtes are out of bounds, now try including all covariates as offset\n")
-    opt$isCovariateOffset <- TRUE
-    
-    # Prepare offset args list with updated outputPrefix
-    offset_args_list <- args_list
-    offset_args_list$outputPrefix <- paste0(opt$outputPrefix, ".offset")
-    offset_args_list$isCovariateOffset <- opt$isCovariateOffset
-    
-    set.seed(1)
-    do.call(fitNULLGLMM_multiV, offset_args_list)
+fit_success <- TRUE
+initial_error <- NULL
+tryCatch({
+   do.call(fitNULLGLMM_multiV, args_list)
+}, error = function(e) {
+  message("Initial model failed with error: ", e$message)
+  initial_error <<- e$message
+  fit_success <<- FALSE  # Track failure
+})
+
+if(fit_success){
+  # Check initial model results if we started without offset
+  if (!opt$isCovariateOffset) {
     my_env <- new.env()
-    load(paste0(opt$outputPrefix, ".offset.rda"), envir = my_env)
+    load(paste0(opt$outputPrefix, ".rda"), envir = my_env)
     modglmm <- my_env$modglmm
     print(modglmm$theta)
-    if (sum(modglmm$theta[2:length(modglmm$theta)]) <= 0 || sum(modglmm$theta[2:length(modglmm$theta)]) > 1) {
-      cat("All variance component parameter estiamtes are out of bounds.\n")
-      file.remove(paste0(opt$outputPrefix, ".offset.rda"))
-      if (file.exists(paste0(opt$outputPrefix, ".offset.varianceRatio.txt"))) {
-        file.remove(paste0(opt$outputPrefix, ".offset.varianceRatio.txt"))
-        # Delete file if it exists
-      } else {
-        if (file.exists(paste0(opt$outputPrefix_varRatio, ".offset.varianceRatio.txt"))) {
-          file.remove(paste0(opt$outputPrefix_varRatio, ".offset.varianceRatio.txt"))
-        }
+    
+    # Check if model failed or variance components are out of bounds
+    theta_sum <- sum(modglmm$theta[2:length(modglmm$theta)])
+    if (theta_sum <= 0 || theta_sum > 1 || !modglmm$converged) {
+      cat("Initial model failed (convergence: ", modglmm$converged, ", theta sum: ", theta_sum, ")\n")
+      cat("Retrying with all covariates as offset...\n")
+      
+      # Remove failed initial model files
+      file.remove(paste0(opt$outputPrefix, ".rda"))
+      var_ratio_file1 <- paste0(opt$outputPrefix, ".varianceRatio.txt")
+      var_ratio_file2 <- paste0(opt$outputPrefix_varRatio, ".varianceRatio.txt")
+      if (file.exists(var_ratio_file1)) {
+        file.remove(var_ratio_file1)
       }
-    } else {
-      file.rename(paste0(opt$outputPrefix, ".offset.rda"), paste0(opt$outputPrefix, ".rda"))
-      if (file.exists(paste0(opt$outputPrefix, ".offset.varianceRatio.txt"))) {
-        file.rename(paste0(opt$outputPrefix, ".offset.varianceRatio.txt"), paste0(opt$outputPrefix, ".varianceRatio.txt"))
-        # Delete file if it exists
-      } else {
-        if (file.exists(paste0(opt$outputPrefix_varRatio, ".offset.varianceRatio.txt"))) {
-          file.rename(paste0(opt$outputPrefix_varRatio, ".offset.varianceRatio.txt"), paste0(opt$outputPrefix_varRatio, ".varianceRatio.txt"))
-        }
+      if (opt$outputPrefix_varRatio != "" && file.exists(var_ratio_file2)) {
+        file.remove(var_ratio_file2)
       }
+      
+      # Retry with offset
+      opt$isCovariateOffset <- TRUE
+      args_list$isCovariateOffset <- opt$isCovariateOffset
+      
+      set.seed(1)
+      tryCatch({
+        do.call(fitNULLGLMM_multiV, args_list)
+      }, error = function(e) {
+        message("Offset model also failed with error: ", e$message)
+        fit_success <<- FALSE
+      })
     }
+  } else {
+    # If we started with offset, just check convergence and retry with more iterations if needed
+    my_env <- new.env()
+    load(paste0(opt$outputPrefix, ".rda"), envir = my_env)
+    modglmm <- my_env$modglmm
+    
+    if(!modglmm$converged){
+      cat("Model didn't converge successfully. Trying with increased maxiter (", opt$maxiter + 500, ")\n")
+      opt$maxiter = opt$maxiter + 500
+      args_list$maxiter <- opt$maxiter
+      
+      # Remove failed files before retry
+      file.remove(paste0(opt$outputPrefix, ".rda"))
+      var_ratio_file1 <- paste0(opt$outputPrefix, ".varianceRatio.txt")
+      var_ratio_file2 <- paste0(opt$outputPrefix_varRatio, ".varianceRatio.txt")
+      if (file.exists(var_ratio_file1)) {
+        file.remove(var_ratio_file1)
+      }
+      if (opt$outputPrefix_varRatio != "" && file.exists(var_ratio_file2)) {
+        file.remove(var_ratio_file2)
+      }
+      
+      tryCatch({
+        do.call(fitNULLGLMM_multiV, args_list)
+      }, error = function(e) {
+        message("Retry with increased iterations also failed: ", e$message)
+        fit_success <<- FALSE
+      })
+    }
+  }
+} else {
+  # Initial fitting completely failed, try with offset
+  cat("Initial model fitting failed completely\n")
+  if (!opt$isCovariateOffset) {
+    cat("Trying with all covariates as offset...\n")
+    opt$isCovariateOffset <- TRUE
+    args_list$isCovariateOffset <- opt$isCovariateOffset
+    
+    tryCatch({
+      do.call(fitNULLGLMM_multiV, args_list)
+      fit_success <<- TRUE  # Mark as successful if offset works
+    }, error = function(e) {
+      message("Offset model also failed with error: ", e$message)
+      fit_success <<- FALSE
+    })
   }
 }
 
+# Final convergence check and cleanup
+final_convergence_check <- function() {
+  rda_file <- paste0(opt$outputPrefix, ".rda")
+  if (file.exists(rda_file)) {
+    tryCatch({
+      my_env <- new.env()
+      load(rda_file, envir = my_env)
+      modglmm <- my_env$modglmm
+      
+      if (!is.null(modglmm) && !modglmm$converged) {
+        cat("Final check: Model did not converge. Removing output files.\n")
+        file.remove(rda_file)
+        
+        # Remove variance ratio file
+        var_ratio_file1 <- paste0(opt$outputPrefix, ".varianceRatio.txt")
+        var_ratio_file2 <- paste0(opt$outputPrefix_varRatio, ".varianceRatio.txt")
+        if (file.exists(var_ratio_file1)) {
+          file.remove(var_ratio_file1)
+        }
+        if (opt$outputPrefix_varRatio != "" && file.exists(var_ratio_file2)) {
+          file.remove(var_ratio_file2)
+        }
+        
+        return(list(status = "FAILED", details = "Model failed to converge and output files removed"))
+      }
+      return(NULL)
+    }, error = function(e) {
+      return(list(status = "FAILED", details = paste("Error in final check:", e$message)))
+    })
+  }
+  return(NULL)
+}
+
+final_check_result <- final_convergence_check()
+
+# Generate comprehensive status report
+cat("\n=== Generating Final Status Report ===\n")
+
+# Handle case where initial fitting completely failed
+if (!fit_success && !is.null(initial_error)) {
+  final_status <- list(
+    status = "FAILED", 
+    details = paste("Initial model fitting failed with error:", initial_error)
+  )
+  check_convergence_and_write_status(opt$outputPrefix, args_list, package_version, final_status)
+} else {
+  # Normal status checking
+  status_result <- check_convergence_and_write_status(opt$outputPrefix, args_list, package_version, final_check_result)
+  
+  # Print final summary
+  cat("\n=== FINAL SUMMARY ===\n")
+  cat(sprintf("Analysis Status: %s\n", status_result$convergence_status))
+  cat(sprintf("Details: %s\n", status_result$convergence_details))
+  if (status_result$convergence_status == "SUCCESS") {
+    cat("✓ Step 1 completed successfully!\n")
+    cat(sprintf("✓ Model file: %s\n", status_result$final_model_file))
+    if (status_result$variance_ratio_file != "") {
+      cat(sprintf("✓ Variance ratio file: %s\n", status_result$variance_ratio_file))
+    }
+  } else {
+    cat("✗ Step 1 failed. Check status file for details.\n")
+  }
+  cat(sprintf("📄 Status report: %s.status.txt\n", opt$outputPrefix))
+}
 
 if (BLASctl_installed) {
   # Restore originally configured BLAS thread count
