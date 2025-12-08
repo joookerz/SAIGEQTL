@@ -10,28 +10,25 @@ cd "$SCRIPT_DIR"
 
 CONFIG_FILE="$SCRIPT_DIR/.saigeqtl_config"
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to print colored messages
+print_message() {
+    local color=$1
+    local message=$2
+    echo -e "${color}${message}${NC}"
+}
+
 # Function to detect SAIGEQTL installation
 detect_saigeqtl_library() {
     local library_path=""
     
-    # Try common installation locations
-    local common_paths=(
-        "/humgen/atgu1/fin/wzhou/projects/eQTL_method_dev/tool_dev/installs_0.3.2_afteroptimization_testing"
-        "$HOME/R/library"
-        "/usr/local/lib/R/site-library"
-        "/usr/lib/R/site-library"
-        "/usr/lib/R/library"
-    )
-    
-    for path in "${common_paths[@]}"; do
-        if [[ -d "$path/SAIGEQTL" ]]; then
-            library_path="$path"
-            break
-        fi
-    done
-    
-    # If not found in common paths, try using R to find it
-    if [[ -z "$library_path" ]]; then
+    # First try using R to find SAIGEQTL in the current .libPaths()
+    if command -v pixi &> /dev/null && [[ -f "$SAIGEQTL_PIXI_MANIFEST" ]]; then
         library_path=$(pixi run --manifest-path "$SAIGEQTL_PIXI_MANIFEST" Rscript -e "
             paths <- .libPaths()
             for(p in paths) {
@@ -43,7 +40,68 @@ detect_saigeqtl_library() {
         " 2>/dev/null | head -n1)
     fi
     
+    # If pixi not available or didn't find it, try with system R
+    if [[ -z "$library_path" ]] && command -v Rscript &> /dev/null; then
+        library_path=$(Rscript -e "
+            paths <- .libPaths()
+            for(p in paths) {
+                if(file.exists(file.path(p, 'SAIGEQTL'))) {
+                    cat(p)
+                    break
+                }
+            }
+        " 2>/dev/null | head -n1)
+    fi
+    
+    # If still not found, try common installation locations (but no hardcoded paths)
+    if [[ -z "$library_path" ]]; then
+        local common_paths=(
+            "$HOME/R/library"
+            "/usr/local/lib/R/site-library"
+            "/usr/lib/R/site-library" 
+            "/usr/lib/R/library"
+        )
+        
+        for path in "${common_paths[@]}"; do
+            if [[ -d "$path/SAIGEQTL" ]]; then
+                library_path="$path"
+                break
+            fi
+        done
+    fi
+    
     echo "$library_path"
+}
+
+# Function to validate library path
+validate_library_path() {
+    local library_path="$1"
+    
+    if [[ -z "$library_path" ]]; then
+        print_message "$RED" "Library path cannot be empty"
+        return 1
+    fi
+    
+    if [[ ! -d "$library_path" ]]; then
+        print_message "$RED" "Library path does not exist: $library_path"
+        return 1
+    fi
+    
+    if [[ ! -d "$library_path/SAIGEQTL" ]]; then
+        print_message "$RED" "SAIGEQTL package not found in: $library_path"
+        print_message "$YELLOW" "Expected to find: $library_path/SAIGEQTL"
+        return 1
+    fi
+    
+    # Check if DESCRIPTION file exists (confirms it's a real R package)
+    if [[ ! -f "$library_path/SAIGEQTL/DESCRIPTION" ]]; then
+        print_message "$RED" "SAIGEQTL directory found but appears incomplete: $library_path/SAIGEQTL"
+        print_message "$YELLOW" "Missing DESCRIPTION file - this may not be a properly installed R package"
+        return 1
+    fi
+    
+    print_message "$GREEN" "✓ Valid SAIGEQTL installation found at: $library_path"
+    return 0
 }
 
 # Function to save config
@@ -79,45 +137,60 @@ setup_library_path() {
     print_message "$YELLOW" "Detecting SAIGEQTL installation..."
     local detected_path=$(detect_saigeqtl_library)
     
-    if [[ -n "$detected_path" ]]; then
+    if [[ -n "$detected_path" ]] && validate_library_path "$detected_path"; then
         export SAIGEQTL_LIBRARY_PATH="$detected_path"
         save_config "$detected_path"
-        print_message "$GREEN" "Found SAIGEQTL at: $detected_path"
         return 0
     else
-        print_message "$RED" "Could not find SAIGEQTL installation."
-        print_message "$YELLOW" "Please set the library path manually:"
-        print_message "$YELLOW" "  export SAIGEQTL_LIBRARY_PATH=/path/to/your/R/library"
-        print_message "$YELLOW" "  $0"
+        print_message "$RED" "Could not automatically detect SAIGEQTL installation."
+        echo ""
+        print_message "$YELLOW" "To find your SAIGEQTL installation, try one of these methods:"
+        echo ""
+        echo "1. Check where R packages are installed:"
+        echo "   R -e '.libPaths()'"
+        echo ""
+        echo "2. Look for SAIGEQTL directory in common locations:"
+        echo "   ls -d ~/R/library/SAIGEQTL 2>/dev/null"
+        echo "   ls -d /usr/local/lib/R/site-library/SAIGEQTL 2>/dev/null"
+        echo ""
+        echo "3. Search for SAIGEQTL installation:"
+        echo "   find /usr -name SAIGEQTL -type d 2>/dev/null | head -5"
+        echo "   find ~ -name SAIGEQTL -type d 2>/dev/null | head -5"
+        echo ""
+        print_message "$YELLOW" "Once you find the library path, set it and run again:"
+        echo "   export SAIGEQTL_LIBRARY_PATH=/path/to/your/R/library"
+        echo "   $0"
+        echo ""
+        print_message "$YELLOW" "Or specify it directly:"
+        echo "   SAIGEQTL_LIBRARY_PATH=/path/to/R/library $0"
+        echo ""
         return 1
     fi
 }
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # Default configuration - can be overridden by environment variables
 export SAIGEQTL_PACKAGE_ROOT="${SAIGEQTL_PACKAGE_ROOT:-$SCRIPT_DIR}"
 export SAIGEQTL_PIXI_MANIFEST="${SAIGEQTL_PIXI_MANIFEST:-$SCRIPT_DIR/pixi.toml}"
 export SAIGEQTL_TEST_DIR="${SAIGEQTL_TEST_DIR:-test_output}"
-export SAIGEQTL_EXPECTED_DIR="${SAIGEQTL_EXPECTED_DIR:-expected_output}"
 export SAIGEQTL_EXTDATA_DIR="${SAIGEQTL_EXTDATA_DIR:-extdata}"
+
+# Set expected output directory - prefer extdata/expected_output if it exists, fall back to expected_output
+if [[ -d "$SAIGEQTL_EXTDATA_DIR/expected_output" ]]; then
+    export SAIGEQTL_EXPECTED_DIR="${SAIGEQTL_EXPECTED_DIR:-$SAIGEQTL_EXTDATA_DIR/expected_output}"
+else
+    export SAIGEQTL_EXPECTED_DIR="${SAIGEQTL_EXPECTED_DIR:-expected_output}"
+fi
 
 # Setup library path automatically
 if [[ -z "$SAIGEQTL_LIBRARY_PATH" ]]; then
     setup_library_path || exit 1
+else
+    # Validate user-provided library path
+    if ! validate_library_path "$SAIGEQTL_LIBRARY_PATH"; then
+        print_message "$RED" "Invalid library path provided: $SAIGEQTL_LIBRARY_PATH"
+        exit 1
+    fi
 fi
-
-# Function to print colored messages
-print_message() {
-    local color=$1
-    local message=$2
-    echo -e "${color}${message}${NC}"
-}
-
 
 # Function to show usage
 show_usage() {
@@ -135,6 +208,7 @@ show_usage() {
     echo "  baseline      Save current test results as baseline"
     echo "  reconfig      Reconfigure SAIGEQTL library path"
     echo "  help          Show this help message"
+    echo "  validate      Validate package installation (same as 'test')"
     echo ""
     echo "Environment Variables (optional):"
     echo "  SAIGEQTL_PACKAGE_ROOT   - Path to SAIGEQTL package root (default: script directory)"
@@ -151,6 +225,7 @@ show_usage() {
     echo "  $0 clean                              # Clean test outputs"
     echo "  $0 baseline                           # Save baseline results"
     echo "  $0 reconfig                           # Reconfigure library path"
+    echo "  $0 validate                           # Validate installation"
     echo ""
     echo "  # Custom library path:"
     echo "  SAIGEQTL_LIBRARY_PATH=/custom/path $0 comprehensive"
@@ -231,7 +306,7 @@ run_test() {
     
     # Create region file for cis eQTL analysis
     region_file="$SAIGEQTL_TEST_DIR/gene_1_cis_region.txt"
-    echo -e "2\t1\t901" > "$region_file"
+    echo -e "2\t1\t9810000" > "$region_file"
     
     step2_args="--bedFile=./$SAIGEQTL_EXTDATA_DIR/input/n.indep_100_n.cell_1.bed --bimFile=./$SAIGEQTL_EXTDATA_DIR/input/n.indep_100_n.cell_1.bim --famFile=./$SAIGEQTL_EXTDATA_DIR/input/n.indep_100_n.cell_1.fam --SAIGEOutputFile=./$SAIGEQTL_TEST_DIR/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_plink_cis --chrom=2 --minMAF=0 --minMAC=20 --LOCO=FALSE --GMMATmodelFile=./$SAIGEQTL_TEST_DIR/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_shared.rda --SPAcutoff=2 --varianceRatioFile=./$SAIGEQTL_TEST_DIR/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_shared.varianceRatio.txt --rangestoIncludeFile=$region_file --markers_per_chunk=10000"
     
@@ -442,6 +517,13 @@ compare_format_outputs() {
 #!/usr/bin/env Rscript
 
 # SAIGEQTL Output Comparison Script
+
+# Handle library path from environment
+library_path <- Sys.getenv("SAIGEQTL_LIBRARY_PATH", "")
+if (library_path != "") {
+  .libPaths(c(library_path, .libPaths()))
+}
+
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 3) {
     stop("Usage: Rscript compare_outputs.R <plink_file> <vcf_file> <bgen_file>")
@@ -643,11 +725,11 @@ EOF
     print_message "$YELLOW" "Running detailed statistical comparison..."
     
     # Build comparison command with library path
-    comparison_cmd="pixi run --manifest-path $SAIGEQTL_PIXI_MANIFEST Rscript"
     if [[ -n "$SAIGEQTL_LIBRARY_PATH" ]]; then
-        comparison_cmd="$comparison_cmd --library=$SAIGEQTL_LIBRARY_PATH"
+        comparison_cmd="SAIGEQTL_LIBRARY_PATH=$SAIGEQTL_LIBRARY_PATH pixi run --manifest-path $SAIGEQTL_PIXI_MANIFEST Rscript $comparison_script $plink_output $vcf_output $bgen_output"
+    else
+        comparison_cmd="pixi run --manifest-path $SAIGEQTL_PIXI_MANIFEST Rscript $comparison_script $plink_output $vcf_output $bgen_output"
     fi
-    comparison_cmd="$comparison_cmd $comparison_script $plink_output $vcf_output $bgen_output"
     
     if eval $comparison_cmd; then
         print_message "$GREEN" "✓ Output comparison completed successfully!"
@@ -782,7 +864,7 @@ run_specific_test() {
 
 # Main execution
 case "${1:-test}" in
-    "test")
+    "test"|"validate")
         run_test
         ;;
     "vcf")

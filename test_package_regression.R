@@ -7,11 +7,18 @@ library(tools)
 
 # Configuration - can be overridden by environment variables
 TEST_DIR <- Sys.getenv("SAIGEQTL_TEST_DIR", "test_output")
-EXPECTED_DIR <- Sys.getenv("SAIGEQTL_EXPECTED_DIR", "expected_output")
 EXTDATA_DIR <- Sys.getenv("SAIGEQTL_EXTDATA_DIR", "extdata")
 PACKAGE_ROOT <- Sys.getenv("SAIGEQTL_PACKAGE_ROOT", ".")
 LIBRARY_PATH <- Sys.getenv("SAIGEQTL_LIBRARY_PATH", "")
 PIXI_MANIFEST <- Sys.getenv("SAIGEQTL_PIXI_MANIFEST", file.path(PACKAGE_ROOT, "pixi.toml"))
+
+# Set expected output directory - prefer extdata/expected_output if it exists
+extdata_expected <- file.path(EXTDATA_DIR, "expected_output")
+if (dir.exists(extdata_expected)) {
+  EXPECTED_DIR <- Sys.getenv("SAIGEQTL_EXPECTED_DIR", extdata_expected)
+} else {
+  EXPECTED_DIR <- Sys.getenv("SAIGEQTL_EXPECTED_DIR", "expected_output")
+}
 
 # Build Rscript command with pixi
 build_rscript_cmd <- function(script_path, extra_args = "") {
