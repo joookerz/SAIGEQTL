@@ -7,7 +7,7 @@ This directory contains expected output files and validation tools to verify tha
 After installing SAIGEQTL, run this command from the package root directory:
 
 ```bash
-./run_regression_test.sh
+./testing/run_regression_test.sh
 ```
 
 This will:
@@ -21,7 +21,7 @@ This will:
 To test all supported input formats (PLINK, VCF, BGEN):
 
 ```bash
-./run_regression_test.sh comprehensive
+./testing/run_regression_test.sh comprehensive
 ```
 
 This runs the full validation suite and compares results across all formats.
@@ -67,25 +67,25 @@ find ~ -name SAIGEQTL -type d 2>/dev/null | head -5
 ```bash
 # Method 1: Export environment variable
 export SAIGEQTL_LIBRARY_PATH=/path/to/your/R/library
-./run_regression_test.sh
+./testing/run_regression_test.sh
 
 # Method 2: Specify directly
-SAIGEQTL_LIBRARY_PATH=/path/to/R/library ./run_regression_test.sh
+SAIGEQTL_LIBRARY_PATH=/path/to/R/library ./testing/run_regression_test.sh
 ```
 
 ### Reset Configuration
 ```bash
-./run_regression_test.sh reconfig
+./testing/run_regression_test.sh reconfig
 ```
 
 ### Clean Test Outputs  
 ```bash
-./run_regression_test.sh clean
+./testing/run_regression_test.sh clean
 ```
 
 ### View Test Options
 ```bash
-./run_regression_test.sh help
+./testing/run_regression_test.sh help
 ```
 
 ## Version Information

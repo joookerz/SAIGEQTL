@@ -6,6 +6,7 @@ version = "0.3.2"
 
 [tasks]
 install-github-deps = "Rscript -e 'if(!require(remotes)) install.packages(\"remotes\"); remotes::install_github(c(\"cysouw/qlcMatrix\", \"leeshawn/MetaSKAT\", \"barkasn/fastSave\"))'"
+install-standard = { depends-on = ["install-github-deps"], cmd = "bash -c 'LIB_PATH=${SAIGEQTL_LIB_PATH:-$(R -q --slave -e \"cat(.libPaths()[1])\")}; R CMD INSTALL . --library=\"$LIB_PATH\" --no-lock --preclean'" }
 
 #build = "R CMD INSTALL ."
 #test = "Rscript -e 'library(SAIGEQTL); cat(\"SAIGE-QTL loaded successfully\\n\")'"

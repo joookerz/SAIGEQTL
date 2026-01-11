@@ -8,6 +8,10 @@ thirdParty/
 src/*.o
 src/*.so
 src/backup/*
+
+# Development documentation (private)
+DEVELOPER_GUIDE_PRIVATE.md
+*_PRIVATE.md
 extdata/input/nfam_100_nindep_0_step1_includeMoreRareVariants_poly.raw
 extdata/output/*
 extdata/GMMAT*
