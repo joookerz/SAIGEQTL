@@ -2,9 +2,37 @@
 
 SAIGEQTL is an R package for scalable and accurate expression quantitative trait locus (eQTL) mapping for single-cell studies. This guide provides multiple installation methods ordered from easiest to most complex.
 
+## Platform Support
+
+**SAIGEQTL supports multiple platforms with varying levels of compatibility:**
+
+| Platform | Support Level | Recommended Methods | Notes |
+|----------|---------------|-------------------|--------|
+| **Linux** | ✅ **Full Support** | All methods (Docker, Binary, Conda, Pixi, Source) | Pre-built binaries available |
+| **macOS** | ✅ **Good Support** | Docker, Conda, Pixi, Source | No pre-built binaries (compilation required) |
+| **Windows** | ⚠️ **Limited Support** | Docker only, or WSL2 + Linux methods | Not natively supported |
+
+### Platform-Specific Notes:
+
+**🐧 Linux (Recommended Platform):**
+- Full support for all installation methods
+- Pre-built binaries available for fastest installation
+- Best performance and compatibility
+
+**🍎 macOS:**
+- Docker and Conda work seamlessly
+- Source compilation requires Xcode command line tools: `xcode-select --install`
+- Both Intel and Apple Silicon supported through Docker/Conda
+- Pixi manages all dependencies automatically
+
+**🪟 Windows:**
+- **Docker is the only reliable method** (requires Docker Desktop)
+- **Alternative: Use WSL2** (Windows Subsystem for Linux) + any Linux installation method
+- Native Windows compilation not currently supported
+
 ## Quick Start (Ordered by Ease of Use)
 
-**🥇 Easiest: Docker (zero setup, any system):**
+**🥇 Easiest: Docker (zero setup, works on Linux, macOS, Windows):**
 ```bash
 # Just need Docker - everything else is included
 docker run --rm -v $(pwd):/data weizhou0/saigeqtl:latest step1_fitNULLGLMM_qtl.R --help
@@ -21,13 +49,13 @@ BINARY_FILE=$(ls binaries/SAIGEQTL_*_linux-x86_64.tgz | head -n1)
 CONDA_OVERRIDE_GLIBC=2.28 pixi run R -e "install.packages('${BINARY_FILE}', repos=NULL, type='source'); library(SAIGEQTL)"
 ```
 
-**🥉 Moderate: Conda/Bioconda (any system, managed environment):**
+**🥉 Moderate: Conda/Bioconda (Linux, macOS, managed environment):**
 ```bash
 # Conda handles all dependencies automatically
 conda install -c aryarm r-saigeqtl
 ```
 
-**🔧 Moderate: Pixi Source (any system, managed environment):**
+**🔧 Moderate: Pixi Source (Linux, macOS, managed environment):**
 ```bash
 # Pixi handles all dependencies (R, compiler, libraries)
 curl -fsSL https://pixi.sh/install.sh | bash && source ~/.bashrc
@@ -35,7 +63,7 @@ git clone https://github.com/weizhou0/qtl.git && cd qtl
 pixi run install-standard
 ```
 
-**🔧 Advanced: R remotes (requires system setup):**
+**🔧 Advanced: R remotes (Linux, macOS - requires system setup):**
 ```r
 # Uses your R + compiler - potential dependency conflicts
 if (!requireNamespace("remotes", quietly = TRUE)) {
@@ -345,7 +373,45 @@ wget https://raw.githubusercontent.com/weizhou0/qtl/main/scripts/install_standar
 Rscript scripts/install_standard.R
 ```
 
-### Method 7: Development Installation (🔧🔧 Most Complex - For Contributors)
+### Method 7: Windows Installation (🪟 Windows Users)
+
+**SAIGEQTL is not natively supported on Windows, but you have two options:**
+
+#### Option 1: Docker Desktop (Recommended)
+```bash
+# Install Docker Desktop for Windows, then:
+docker run --rm weizhou0/saigeqtl:latest step1_fitNULLGLMM_qtl.R --help
+
+# Run analysis with your data
+docker run --rm -v "${PWD}:/data" weizhou0/saigeqtl:latest \
+  step1_fitNULLGLMM_qtl.R \
+  --plinkFile=/data/your_genotypes \
+  --phenoFile=/data/your_phenotypes.txt \
+  --outputPrefix=/data/results
+```
+
+#### Option 2: WSL2 + Linux Installation
+```bash
+# 1. Install Windows Subsystem for Linux 2
+wsl --install
+
+# 2. Open WSL2 terminal and use any Linux installation method:
+# For example, using conda:
+conda install -c aryarm r-saigeqtl
+
+# Or binary installation:
+curl -fsSL https://pixi.sh/install.sh | bash && source ~/.bashrc
+git clone https://github.com/weizhou0/qtl.git && cd qtl
+BINARY_FILE=$(ls binaries/SAIGEQTL_*_linux-x86_64.tgz | head -n1)
+CONDA_OVERRIDE_GLIBC=2.28 pixi run R -e "install.packages('${BINARY_FILE}', repos=NULL, type='source')"
+```
+
+**Windows Notes:**
+- Docker Desktop requires Windows 10/11 with virtualization enabled
+- WSL2 provides a full Linux environment within Windows
+- File paths in Docker use forward slashes and need proper mounting
+
+### Method 8: Development Installation (🔧🔧 Most Complex - For Contributors)
 
 **For contributors or users needing the latest development version:**
 
@@ -500,33 +566,51 @@ R -e "remotes::install_github('weizhou0/qtl', lib = '~/R-library')"
 
 ## System Requirements Summary
 
-| Method | Type | OS | R Version | Additional Requirements |
-|--------|------|----|-----------|-----------------------|
-| Method 1 (Docker) | **Container** | **Any** | **Built-in** | **Docker only** |
-| Method 2 (Binary) | **Pre-built** | Linux x86_64 | ≥ 4.4 **managed** | Pixi, GLIBC ≥ 2.28 |
-| Method 3 (Conda) | **Pre-built** | **Any** | **Managed by conda** | **Conda/Mamba only** |
-| Method 4 (Pixi Source) | Source (manual) | Any | **Managed by pixi** | **Pixi only** (includes R + compiler) |
-| Method 5 (R remotes) | Source (auto) | Any | ≥ 3.5.0 **on system** | **System:** C++ compiler, BLAS/LAPACK |
-| Method 6 (Script) | Source (auto) | Any | ≥ 3.5.0 **on system** | wget/curl |
-| Method 7 (Dev) | Source (manual) | Any | ≥ 3.5.0 **on system** | git, **system** C++ compiler |
+| Method | Type | OS Support | R Version | Additional Requirements |
+|--------|------|------------|-----------|------------------------|
+| Method 1 (Docker) | **Container** | **Linux, macOS, Windows** | **Built-in** | **Docker only** |
+| Method 2 (Binary) | **Pre-built** | **Linux x86_64 only** | ≥ 4.4 **managed** | Pixi, GLIBC ≥ 2.28 |
+| Method 3 (Conda) | **Pre-built** | **Linux, macOS** | **Managed by conda** | **Conda/Mamba only** |
+| Method 4 (Pixi Source) | Source (manual) | **Linux, macOS** | **Managed by pixi** | **Pixi only** (includes R + compiler) |
+| Method 5 (R remotes) | Source (auto) | **Linux, macOS** | ≥ 3.5.0 **on system** | **System:** C++ compiler, BLAS/LAPACK |
+| Method 6 (Script) | Source (auto) | **Linux, macOS** | ≥ 3.5.0 **on system** | wget/curl |
+| Method 7 (Windows) | **Container/WSL2** | **Windows only** | **See method details** | Docker Desktop or WSL2 |
+| Method 8 (Dev) | Source (manual) | **Linux, macOS** | ≥ 3.5.0 **on system** | git, **system** C++ compiler |
 
 ## Quick Reference
 
+### Universal (All Platforms):
 ```bash
-# Docker (zero setup, any system) - RECOMMENDED
+# Docker (zero setup, Linux/macOS/Windows) - RECOMMENDED
 docker run --rm weizhou0/saigeqtl:latest step1_fitNULLGLMM_qtl.R --help
+```
 
+### Linux & macOS:
+```bash
 # Conda (easy, cross-platform)
 conda install -c aryarm r-saigeqtl
 
+# Standard installation (source compilation)
+R -e "if (!require('remotes')) install.packages('remotes'); remotes::install_github('weizhou0/qtl')"
+```
+
+### Linux Only:
+```bash
 # Binary installation (fastest for Linux)
 git clone https://github.com/weizhou0/qtl.git && cd qtl
 curl -fsSL https://pixi.sh/install.sh | bash && source ~/.bashrc
 BINARY_FILE=$(ls binaries/SAIGEQTL_*_linux-x86_64.tgz | head -n1)
 CONDA_OVERRIDE_GLIBC=2.28 pixi run R -e "install.packages('${BINARY_FILE}', repos=NULL, type='source'); library(SAIGEQTL)"
+```
 
-# Standard installation (source compilation)
-R -e "if (!require('remotes')) install.packages('remotes'); remotes::install_github('weizhou0/qtl')"
+### Windows Only:
+```bash
+# Option 1: Docker Desktop
+docker run --rm -v "${PWD}:/data" weizhou0/saigeqtl:latest step1_fitNULLGLMM_qtl.R --help
+
+# Option 2: WSL2 + any Linux method
+wsl --install
+# Then use any Linux installation method above
 ```
 
 ## Directory Structure
@@ -570,9 +654,18 @@ step3_gene_pvalue_qtl.R --library='/your/custom/path' --inputFile=results.txt
 
 Choose the method that best fits your environment and requirements!
 
-**Recommendation Order:**
-1. Try **Docker** first (works everywhere)
-2. Try **Conda** (easy, cross-platform)
-3. If on Linux, try **Binary** (fastest local install)
-4. If you need isolation, try **Pixi Source**
-5. As last resort, try **R remotes** (potential issues)
+**Recommendation Order by Platform:**
+
+**🐧 Linux Users:**
+1. **Binary** (fastest) → **Docker** → **Conda** → **Pixi Source** → **R remotes**
+
+**🍎 macOS Users:**
+1. **Docker** (easiest) → **Conda** → **Pixi Source** → **R remotes**
+
+**🪟 Windows Users:**
+1. **Docker Desktop** (only reliable option) → **WSL2 + Linux methods**
+
+**For All Platforms:**
+- **Docker is universally recommended** - works identically everywhere
+- **Conda** provides excellent cross-platform compatibility for Linux/macOS
+- **Source compilation** requires more setup but gives latest features

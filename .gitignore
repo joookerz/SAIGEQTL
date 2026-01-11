@@ -32,4 +32,5 @@ test_output/
 test_output/compare_outputs.R
 *.log
 .saigeqtl_config
-CLAUDE.md
+.claude.md
+.developer_guide.md
