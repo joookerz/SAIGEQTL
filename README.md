@@ -29,6 +29,7 @@ curl -fsSL https://pixi.sh/install.sh | bash && source ~/.bashrc
 BINARY_FILE=$(ls binaries/SAIGEQTL_*_linux-x86_64.tgz | head -n1)
 CONDA_OVERRIDE_GLIBC=2.28 pixi run R -e "install.packages('${BINARY_FILE}', repos=NULL, type='source')"
 ```
+*⏱️ Note: First pixi run takes ~15 minutes (downloads 262 packages), future runs are instant*
 
 **📋 R Package:**
 ```r

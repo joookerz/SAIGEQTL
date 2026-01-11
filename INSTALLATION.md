@@ -126,6 +126,24 @@ cat('✓ SAIGEQTL', as.character(packageVersion('SAIGEQTL')), 'installed success
 "
 ```
 
+**⏱️ Expected Installation Progress:**
+
+The pixi installation may take 10-20 minutes on first run as it downloads ~262 packages:
+
+```bash
+⠈ preparing packages   [━━━━━━━━━━━━━━━━━━━╾] 261/262 libboost-headers
+⠁ preparing packages   [━━━━━━━━━━━━━━━━━━━╾] 261/262 libboost-headers  
+⠉ preparing packages   [━━━━━━━━━━━━━━━━━━━╾] 261/262 libboost-headers
+⠙ preparing packages   [━━━━━━━━━━━━━━━━━━━╾] 261/262 libboost-headers
+▪ preparing packages   [━━━━━━━━━━━━━━━━━━━━] 262/262
+```
+
+**✅ What this means:**
+- **First time only**: Pixi downloads R + all statistical dependencies 
+- **Normal progress**: The bar may stay at 261/262 for several minutes
+- **Be patient**: Once complete, you'll have a fully isolated R environment with SAIGEQTL ready to use
+- **Future runs**: Subsequent `pixi run` commands will be very fast (cached)
+
 **Alternative: One-liner for Binary Installation**
 ```bash
 # One-liner that clones repo and installs latest binary
@@ -237,6 +255,27 @@ pixi run install-standard
 
 # Test installation
 pixi run R -e "library(SAIGEQTL); packageVersion('SAIGEQTL')"
+
+# Note: First pixi run may take 15-20 minutes (downloads 262 packages)
+# Subsequent runs are very fast (uses cached environment)
+```
+
+**⏱️ Pixi Installation Progress (First Time):**
+
+Expect to see this progress during first-time setup:
+
+```bash
+⠈ preparing packages   [━━━━━━━━━━━━━━━━━━━╾] 261/262 libboost-headers
+⠁ preparing packages   [━━━━━━━━━━━━━━━━━━━╾] 261/262 libboost-headers
+⠉ preparing packages   [━━━━━━━━━━━━━━━━━━━╾] 261/262 libboost-headers
+▪ preparing packages   [━━━━━━━━━━━━━━━━━━━━] 262/262
+```
+
+**💡 Tips:**
+- Progress bar may appear stuck at 261/262 for several minutes - this is normal
+- Pixi is downloading R + Rcpp + statistical libraries (large packages)
+- Once complete, you'll have a fully isolated R environment with SAIGEQTL
+- Future `pixi run` commands will be instant (environment is cached)
 ```
 
 **Custom Library Path:**
@@ -365,6 +404,52 @@ Total functions: 257
 ```
 
 ## Troubleshooting
+
+### Installation Progress & Time Expectations
+
+**🕐 Normal Installation Times:**
+- **Docker**: Instant (image download ~2GB)
+- **Conda**: 2-5 minutes (pre-built packages)
+- **Binary**: 1-2 minutes (direct install)
+- **Pixi**: 15-20 minutes first time (builds environment)
+- **Source**: 5-15 minutes (compilation time)
+
+**📊 Pixi Progress Indicators:**
+
+**Normal Progress (Don't worry!):**
+```bash
+⠈ preparing packages   [━━━━━━━━━━━━━━━━━━━╾] 261/262 libboost-headers
+⠁ preparing packages   [━━━━━━━━━━━━━━━━━━━╾] 261/262 libboost-headers
+⠉ preparing packages   [━━━━━━━━━━━━━━━━━━━╾] 261/262 libboost-headers
+⠙ preparing packages   [━━━━━━━━━━━━━━━━━━━╾] 261/262 libboost-headers
+▪ preparing packages   [━━━━━━━━━━━━━━━━━━━━] 262/262
+```
+
+**✅ What's happening:**
+- Pixi downloads R + 261 dependency packages (Rcpp, Matrix, etc.)
+- Progress bar may appear "stuck" at 261/262 for 5-10 minutes
+- This is normal - large packages take time to download/prepare
+- Once complete: fully isolated R environment with SAIGEQTL ready
+
+**🚨 Signs of Problems:**
+```bash
+# Network issues
+✗ Failed to download package xyz
+✗ Connection timeout
+
+# Disk space issues  
+✗ No space left on device
+✗ Failed to extract package
+
+# Permission issues
+✗ Permission denied writing to cache
+```
+
+**💡 If Installation Gets Stuck:**
+1. **Wait**: First-time pixi setup genuinely takes 15-20 minutes
+2. **Check network**: Ensure stable internet connection
+3. **Check disk space**: Need 2-3GB free space for pixi environment
+4. **Try alternative**: Use Docker or Conda for faster setup
 
 ### Common Source Installation Issues
 
