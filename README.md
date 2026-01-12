@@ -52,7 +52,8 @@ qtl/
 
 ## Citation
 
-If you use SAIGEQTL in your research, please cite our paper: [Citation details to be added]
+If you use SAIGEQTL in your research, please cite our paper: 
+https://www.medrxiv.org/content/10.1101/2024.05.15.24307317v1
 
 ## Quick Start
 
