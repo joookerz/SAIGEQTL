@@ -42,7 +42,7 @@ docker run --rm -v $(pwd):/data weizhou0/saigeqtl:latest step1_fitNULLGLMM_qtl.R
 ```bash
 # Fast installation for Linux with pixi
 curl -fsSL https://pixi.sh/install.sh | bash && source ~/.bashrc
-git clone https://github.com/weizhou0/qtl.git && cd qtl
+git clone https://github.com/weizhou0/SAIGEQTL.git && cd SAIGEQTL
 
 # Auto-detect latest binary file
 BINARY_FILE=$(ls binaries/SAIGEQTL_*_linux-x86_64.tgz | head -n1)
@@ -59,7 +59,7 @@ conda install -c aryarm r-saigeqtl
 ```bash
 # Pixi handles all dependencies (R, compiler, libraries)
 curl -fsSL https://pixi.sh/install.sh | bash && source ~/.bashrc
-git clone https://github.com/weizhou0/qtl.git && cd qtl
+git clone https://github.com/weizhou0/SAIGEQTL.git && cd SAIGEQTL
 pixi run install-standard
 ```
 
@@ -140,8 +140,8 @@ curl -fsSL https://pixi.sh/install.sh | bash
 source ~/.bashrc  # Restart shell or reload environment
 
 # 2. Clone repository
-git clone https://github.com/weizhou0/qtl.git
-cd qtl
+git clone https://github.com/weizhou0/SAIGEQTL.git
+cd SAIGEQTL
 
 # 3. Install from pre-built binary (auto-detect latest version)
 BINARY_FILE=$(ls binaries/SAIGEQTL_*_linux-x86_64.tgz | head -n1)
@@ -175,7 +175,7 @@ The pixi installation may take 10-20 minutes on first run as it downloads ~262 p
 **Alternative: One-liner for Binary Installation**
 ```bash
 # One-liner that clones repo and installs latest binary
-git clone https://github.com/weizhou0/qtl.git && cd qtl && \
+git clone https://github.com/weizhou0/SAIGEQTL.git && cd SAIGEQTL && \
 curl -fsSL https://pixi.sh/install.sh | bash && source ~/.bashrc && \
 BINARY_FILE=$(ls binaries/SAIGEQTL_*_linux-x86_64.tgz | head -n1) && \
 CONDA_OVERRIDE_GLIBC=2.28 pixi run R -e "install.packages('${BINARY_FILE}', repos=NULL, type='source')"
@@ -270,8 +270,8 @@ curl -fsSL https://pixi.sh/install.sh | bash
 source ~/.bashrc
 
 # 2. Download source code
-git clone https://github.com/weizhou0/qtl.git
-cd qtl
+git clone https://github.com/weizhou0/SAIGEQTL.git
+cd SAIGEQTL
 
 # 3. Install with pixi-managed environment
 # Default installation (to pixi's R library):
@@ -401,7 +401,7 @@ conda install -c aryarm r-saigeqtl
 
 # Or binary installation:
 curl -fsSL https://pixi.sh/install.sh | bash && source ~/.bashrc
-git clone https://github.com/weizhou0/qtl.git && cd qtl
+git clone https://github.com/weizhou0/SAIGEQTL.git && cd SAIGEQTL
 BINARY_FILE=$(ls binaries/SAIGEQTL_*_linux-x86_64.tgz | head -n1)
 CONDA_OVERRIDE_GLIBC=2.28 pixi run R -e "install.packages('${BINARY_FILE}', repos=NULL, type='source')"
 ```
@@ -417,8 +417,8 @@ CONDA_OVERRIDE_GLIBC=2.28 pixi run R -e "install.packages('${BINARY_FILE}', repo
 
 ```bash
 # Clone and install from source
-git clone https://github.com/weizhou0/qtl.git
-cd qtl
+git clone https://github.com/weizhou0/SAIGEQTL.git
+cd SAIGEQTL
 Rscript scripts/install_standard.R --dev
 ```
 
@@ -561,7 +561,7 @@ R -e "remotes::install_github('weizhou0/qtl', lib = '~/R-library')"
 ### Getting Help
 
 - **Documentation:** https://weizhou0.github.io/SAIGE-QTL-doc/
-- **Issues:** https://github.com/weizhou0/qtl/issues
+- **Issues:** https://github.com/weizhou0/SAIGEQTL/issues
 - **Examples:** See `extdata/` directory in the package
 
 ## System Requirements Summary
@@ -597,7 +597,7 @@ R -e "if (!require('remotes')) install.packages('remotes'); remotes::install_git
 ### Linux Only:
 ```bash
 # Binary installation (fastest for Linux)
-git clone https://github.com/weizhou0/qtl.git && cd qtl
+git clone https://github.com/weizhou0/SAIGEQTL.git && cd SAIGEQTL
 curl -fsSL https://pixi.sh/install.sh | bash && source ~/.bashrc
 BINARY_FILE=$(ls binaries/SAIGEQTL_*_linux-x86_64.tgz | head -n1)
 CONDA_OVERRIDE_GLIBC=2.28 pixi run R -e "install.packages('${BINARY_FILE}', repos=NULL, type='source'); library(SAIGEQTL)"

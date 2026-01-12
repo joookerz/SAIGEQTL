@@ -48,7 +48,7 @@ qtl/
 
 - 📖 **User Guide**: https://weizhou0.github.io/SAIGE-QTL-doc/
 - 📦 **Installation**: [INSTALLATION.md](INSTALLATION.md)
-- 🐛 **Issues**: https://github.com/weizhou0/qtl/issues
+- 🐛 **Issues**: https://github.com/weizhou0/SAIGEQTL/issues
 
 ## Citation
 

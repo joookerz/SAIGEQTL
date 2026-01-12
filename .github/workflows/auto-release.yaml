@@ -99,10 +99,10 @@ jobs:
             
             **📋 R remotes:**
             ```r
-            remotes::install_github("weizhou0/qtl")
+            remotes::install_github("weizhou0/SAIGEQTL")
             ```
             
-            See [INSTALLATION.md](https://github.com/weizhou0/qtl/blob/main/INSTALLATION.md) for complete installation guide.
+            See [INSTALLATION.md](https://github.com/weizhou0/SAIGEQTL/blob/main/INSTALLATION.md) for complete installation guide.
           draft: false
           prerelease: false
 

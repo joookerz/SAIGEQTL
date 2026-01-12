@@ -30,8 +30,8 @@ setup_pixi_project() {
     cd "$TEMP_DIR"
     
     # Clone the repository
-    git clone https://github.com/weizhou0/qtl.git
-    cd qtl
+    git clone https://github.com/weizhou0/SAIGEQTL.git
+    cd SAIGEQTL
     
     # Install dependencies using pixi
     pixi install
