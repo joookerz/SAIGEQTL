@@ -12,12 +12,12 @@ SAIGEQTL is an R package for scalable and accurate expression quantitative trait
 
 ## Installation
 
-👉 **See [INSTALLATION.md](INSTALLATION.md) for complete installation guide with platform support**
+👉 **See [the complete installation guide with platform support](https://weizhou0.github.io/SAIGE-QTL-doc/docs/Installation.html).**
 
 **Quick Start:**
 ```bash
 # Docker (works on all platforms)
-docker run --rm weizhou0/saigeqtl:latest step1_fitNULLGLMM_qtl.R --help
+docker run --rm wzhou88/saigeqtl:latest step1_fitNULLGLMM_qtl.R --help
 ```
 
 ## Directory Structure
@@ -47,7 +47,6 @@ qtl/
 ## Documentation
 
 - 📖 **User Guide**: https://weizhou0.github.io/SAIGE-QTL-doc/
-- 📦 **Installation**: [INSTALLATION.md](INSTALLATION.md)
 - 🐛 **Issues**: https://github.com/weizhou0/SAIGEQTL/issues
 
 ## Citation
@@ -78,16 +77,4 @@ step2_tests_qtl.R \
 step3_gene_pvalue_qtl.R \
   --assocFile=results/step2.txt \
   --genePval_outputFile=results/gene_pvalues.txt
-```
-
-## Installation Validation
-
-Validate your installation:
-
-```bash
-# Quick validation
-./testing/run_regression_test.sh validate
-
-# Comprehensive validation  
-./testing/run_regression_test.sh comprehensive
 ```
