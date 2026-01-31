@@ -257,6 +257,10 @@ option_list <- list(
     type = "integer", default = 1,
     help = "Optional. Batch size for variance ratio estimation. Higher values use more memory but may be faster. Set to 1 for sequential processing (low memory), or >1 for batch processing. [default=1]"
   ),
+  make_option("--solverMethod",
+    type = "character", default = "auto",
+    help = "Optional. Solver method for fitting null model: 'auto' (automatic selection based on data structure), 'pcg' (Preconditioned Conjugate Gradient), 'smw' (Sherman-Morrison-Woodbury). When 'auto': SMW for repeated cells without GRM, PCG when GRM is provided or no repeated cells. [default='auto']"
+  ),
   make_option("--library",
     type = "character", default = "",
     help = "Optional. Path to custom R library directory where SAIGEQTL package is installed. If not specified, uses default R library paths."
@@ -390,6 +394,12 @@ args_list$isExportResiduals <- opt$isExportResiduals
 # Conditionally add varRatioBatchSize if supported
 if (varRatioBatchSize_supported) {
   args_list$varRatioBatchSize <- opt$varRatioBatchSize
+}
+
+# Add solverMethod if function supports it
+solverMethod_supported <- "solverMethod" %in% names(formals(fitNULLGLMM_multiV))
+if (solverMethod_supported) {
+  args_list$solverMethod <- opt$solverMethod
 }
 
 cat("Final number of arguments:", length(args_list), "\n")

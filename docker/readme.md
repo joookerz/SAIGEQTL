@@ -2,18 +2,18 @@
 
 ## Building Docker Images
 
-### Build for Current Version (0.3.4)
+### Build for Current Version (0.3.4.2)
 
 ```bash
 # Build the image (run from qtl/ root directory, not qtl/docker/)
 docker build -t "saigeqtl" -f docker/Dockerfile .
 
 # Tag with both version number and latest
-docker tag saigeqtl wzhou88/saigeqtl:0.3.4
+docker tag saigeqtl wzhou88/saigeqtl:0.3.4.2
 docker tag saigeqtl wzhou88/saigeqtl:latest
 
 # Push both tags to Docker Hub
-docker push wzhou88/saigeqtl:0.3.4
+docker push wzhou88/saigeqtl:0.3.4.2
 docker push wzhou88/saigeqtl:latest
 ```
 
@@ -41,7 +41,7 @@ docker push wzhou88/saigeqtl:latest
 
 ```bash
 # Test version-specific tag
-docker run --rm wzhou88/saigeqtl:0.3.4 step1_fitNULLGLMM_qtl.R --help
+docker run --rm wzhou88/saigeqtl:0.3.4.2 step1_fitNULLGLMM_qtl.R --help
 
 # Test latest tag
 docker run --rm wzhou88/saigeqtl:latest step1_fitNULLGLMM_qtl.R --help
@@ -53,7 +53,8 @@ docker run --rm wzhou88/saigeqtl:latest pixi run R -e "library(SAIGEQTL); packag
 ## Available Tags
 
 - `wzhou88/saigeqtl:latest` - Always points to the most recent stable release
-- `wzhou88/saigeqtl:0.3.4` - Specific version 0.3.4 (current stable)
+- `wzhou88/saigeqtl:0.3.4.2` - Specific version 0.3.4.2 (current stable, adds --solverMethod flag)
+- `wzhou88/saigeqtl:0.3.4` - Previous version 0.3.4
 - `wzhou88/saigeqtl:0.3.2` - Previous version 0.3.2
 
 ## Notes

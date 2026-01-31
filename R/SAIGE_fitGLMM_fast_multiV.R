@@ -50,6 +50,7 @@
 #' @param isShrinkModelOutput logical. remove unnecessary objects for step2 from the model output. By default, FALSE.
 #' @param isExportResiduals logical. export a residual vector. By default, FALSE.
 #' @param varRatioBatchSize integer. Batch size for variance ratio estimation. Higher values use more memory but may be faster. Set to 1 for sequential processing (low memory), or >1 for batch processing. By default, 10.
+#' @param solverMethod character. Solver method for fitting null model: 'auto' (automatic selection), 'pcg' (Preconditioned Conjugate Gradient), 'smw' (Sherman-Morrison-Woodbury). When 'auto': SMW for repeated cells without GRM, PCG when GRM is provided or no repeated cells. By default, 'auto'.
 #' @return a file ended with .rda that contains the glmm model information, a file ended with .varianceRatio.txt that contains the variance ratio values, and a file ended with #markers.SPAOut.txt that contains the SPAGMMAT tests results for the markers used for estimating the variance ratio.
 #' @export
 fitNULLGLMM_multiV <- function(plinkFile = "",
@@ -120,7 +121,8 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
                                isStoreSigma = FALSE,
                                isShrinkModelOutput = FALSE,
                                isExportResiduals = FALSE,
-                               varRatioBatchSize = 10) {
+                               varRatioBatchSize = 10,
+                               solverMethod = "auto") {
       start_0 <- proc.time()
   ## set up output files
   modelOut <- paste0(outputPrefix, ".rda")
@@ -331,7 +333,8 @@ fitNULLGLMM_multiV <- function(plinkFile = "",
 
     if (isphenoFileLarge) {
       catcmd <- ifelse(grepl(".gz$", phenoFile) | grepl(".bgz$", phenoFile), "gunzip -c ", "cat ")
-      cmd <- paste0(catcmd, phenoFile, " | head -n 1 | sed 's/[\\t ]/\\n/g' | awk '{print $1\"\\t\"NR}' > ", outputPrefix, "_", phenoCol, "_lineNum_temp")
+      # Use tr instead of sed for cross-platform compatibility (macOS sed doesn't interpret \t in bracket expressions)
+      cmd <- paste0(catcmd, phenoFile, " | head -n 1 | tr '\\t' '\\n' | awk '{print $1\"\\t\"NR}' > ", outputPrefix, "_", phenoCol, "_lineNum_temp")
       system(cmd)
 
       checkColListDataFrame <- data.frame(colna = checkColList)
@@ -1122,6 +1125,42 @@ print(start_7 - start_0)
 
     set_isSparseGRM(useSparseGRMtoFitNULL)
     set_useGRMtoFitNULL(useGRMtoFitNULL)
+
+    # Determine solver method based on data structure
+    hasRepeatedCells <- any(duplicated(dataMerge_sort$IID))
+    solverMethodInt <- 2  # default to SMW
+
+    if (solverMethod == "auto") {
+      if (useGRMtoFitNULL) {
+        # GRM is provided, must use PCG (SMW doesn't support GRM)
+        solverMethodInt <- 1
+        cat("Solver method: PCG (GRM is used for null model fitting)\n")
+      } else if (hasRepeatedCells) {
+        # No GRM, but has repeated cells -> use SMW
+        solverMethodInt <- 2
+        cat("Solver method: SMW (repeated cells detected, no GRM)\n")
+      } else {
+        # No GRM, no repeated cells -> use PCG
+        solverMethodInt <- 1
+        cat("Solver method: PCG (no repeated cells)\n")
+      }
+    } else if (solverMethod == "pcg") {
+      solverMethodInt <- 1
+      cat("Solver method: PCG (user specified)\n")
+    } else if (solverMethod == "smw") {
+      if (useGRMtoFitNULL) {
+        # User wants SMW but GRM is provided - warn and use PCG
+        warning("SMW solver does not support GRM. Switching to PCG.")
+        solverMethodInt <- 1
+        cat("Solver method: PCG (SMW requested but GRM is used, falling back to PCG)\n")
+      } else {
+        solverMethodInt <- 2
+        cat("Solver method: SMW (user specified)\n")
+      }
+    } else {
+      stop("Invalid solverMethod: ", solverMethod, ". Use 'auto', 'pcg', or 'smw'.")
+    }
+    set_solverMethod(solverMethodInt)
 
     if (traitType != "count_nb") {
       system.time(modglmm <- glmmkin.ai_PCG_Rcpp_multiV(bedFile, bimFile, famFile, Xorig, isCovariateOffset,

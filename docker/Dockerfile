@@ -23,6 +23,9 @@ RUN curl -fsSL https://pixi.sh/install.sh | sh && \
     pixi run Rscript -e 'install.packages("lintools", repos="https://cloud.r-project.org")' && \
     pixi run install-github-deps
 
+# Use pixi-compatible Makevars for Docker build
+RUN cp src/Makevars.pixi src/Makevars
+
 #RUN pixi run R CMD INSTALL .
 RUN pixi run Rscript -e 'install.packages(".", repos=NULL, type="source")'
 
