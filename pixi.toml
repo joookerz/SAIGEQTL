@@ -1,11 +1,11 @@
 [workspace]
-channels = ["conda-forge", "bioconda"]
+channels = ["conda-forge", "bioconda", "r"]
 name = "SAIGEQTL"
-platforms = ["linux-64", "linux-aarch64", "osx-64"]
+platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64"]
 version = "0.3.2"
 
 [tasks]
-install-github-deps = "Rscript -e 'if(!require(remotes)) install.packages(\"remotes\"); remotes::install_github(c(\"cysouw/qlcMatrix\", \"leeshawn/MetaSKAT\", \"barkasn/fastSave\"))'"
+install-github-deps = "Rscript -e 'remotes::install_github(\"barkasn/fastSave\")'"
 install-standard = { depends-on = ["install-github-deps"], cmd = "bash -c 'LIB_PATH=${SAIGEQTL_LIB_PATH:-$(R -q --slave -e \"cat(.libPaths()[1])\")}; R CMD INSTALL . --library=\"$LIB_PATH\" --no-lock --preclean'" }
 
 #build = "R CMD INSTALL ."
@@ -48,6 +48,7 @@ r-cpp11 = "*"
 r-dplyr = "*"
 r-dbplyr = "*"
 r-matrix = "*"
+r-qlcmatrix = "*"
 r-furrr = "*"
 
 # Standard R packages
@@ -66,8 +67,6 @@ r-rsqlite = "*"
 r-remotes = "*"
 htslib = ">=1.22.1,<2"
 
-# Note: Some packages not available in conda channels:
-# - qlcMatrix (GitHub: cysouw/qlcMatrix)
-# - MetaSKAT (GitHub: leeshawn/MetaSKAT)
+# Note: one package not available in conda channels:
 # - fastSave (GitHub: barkasn/fastSave)
 # These are handled via the install-github-deps task
