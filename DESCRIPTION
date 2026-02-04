@@ -1,7 +1,7 @@
 Package: SAIGEQTL
 Type: Package
 Title: scalable and accurate expression quantitative trait locus mapping for single-cell studies
-Version: 0.3.4.2
+Version: 0.3.5
 Date: 2025-12-08
 Author: Wei Zhou, Anna Cuomo, Linfeng Hu
 Maintainer: Wei Zhou <wzhou@broadinstitute.org> 
