@@ -34,3 +34,5 @@ test_output/compare_outputs.R
 .saigeqtl_config
 .claude.md
 .developer_guide.md
+.DS_Store
+R/.Rhistory
