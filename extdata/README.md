@@ -42,5 +42,5 @@ Rscript extdata/makeGroupFile.R --help
 
 Or from Docker:
 ```bash
-docker run --rm -v $(pwd):/data weizhou0/saigeqtl:latest step1_fitNULLGLMM_qtl.R --help
+docker run wzhou88/saigeqtl:latest step1_fitNULLGLMM_qtl.R --help
 ```
