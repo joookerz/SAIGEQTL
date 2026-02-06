@@ -80,10 +80,12 @@ SAIGEClass::SAIGEClass(
         arma::mat & t_res_gxe,
         arma::mat & t_mu2_gxe,
         arma::mat & t_mu_gxe,
-        arma::mat & t_varWeights_gxe){
+        arma::mat & t_varWeights_gxe,
+        bool t_is_cell_level_genotype){
 
 
 m_is_gxe = t_is_gxe;
+m_is_cell_level_genotype = t_is_cell_level_genotype;
     m_y_mt = t_y;
     m_XV_mt = t_XV;
     m_XXVX_inv_mt = t_XXVX_inv;
@@ -1249,7 +1251,11 @@ void SAIGEClass::fast_logistf_fit_simple(arma::mat & x,
 }
 
 void SAIGEClass::set_flagSparseGRM_cur(bool t_flagSparseGRM_cur){
-	m_flagSparseGRM_cur = t_flagSparseGRM_cur;
+	if(m_is_cell_level_genotype){
+		m_flagSparseGRM_cur = false;
+	}else{
+		m_flagSparseGRM_cur = t_flagSparseGRM_cur;
+	}
 }
 
 
@@ -1265,7 +1271,7 @@ arma::vec SAIGEClass::getDiagOfSigma_V(){
         arma::vec diagVecG, diagVecV, diagVecG_I, diagVecG_T, diagVecG_IT,diagVecV_I, diagVecV_T, diagVecV_IT;
         unsigned int tauind = 0;
 	std::cout << "getDiagOfSigma_V() " << std::endl;
-        if(g_I_longl_mat.n_rows == 0 && g_T_longl_mat.n_rows == 0){
+        if(m_is_cell_level_genotype || (g_I_longl_mat.n_rows == 0 && g_T_longl_mat.n_rows == 0)){
 
              //diagVec = tauVal0/m_mu2;
              diagVec = 1/(m_mu2_mt.col(m_itrait));
@@ -1323,7 +1329,7 @@ arma::vec SAIGEClass::getCrossprod_V(arma::vec& bVec){
 	double tauVal0 = m_tauvec(0); 
 
         unsigned int tau_ind = 0;
-        if(g_I_longl_mat.n_rows == 0 && g_T_longl_mat.n_rows == 0){ //it must have specified GRM
+        if(m_is_cell_level_genotype || (g_I_longl_mat.n_rows == 0 && g_T_longl_mat.n_rows == 0)){ //it must have specified GRM
                   crossProd1 = bVec;
                   //crossProdVec = tauVal0*(bVec % (1/m_mu2)) + m_tauVal_sp*crossProd1;
                   crossProdVec = (bVec % (1/m_mu2)) + m_tauVal_sp*crossProd1;

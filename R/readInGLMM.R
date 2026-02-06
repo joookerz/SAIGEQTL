@@ -115,17 +115,6 @@ ReadModel <- function(GMMATmodelFile = "", chrom = "", LOCO = TRUE, is_Firth_bet
   modglmm$mu <- as.vector(modglmm$fitted.values)
   ## clean
   modglmm$fitted.values <- NULL
-  if (sum(duplicated(modglmm$sampleID)) > 0) {
-    modglmm$obj.noK$Sigma_iXXSigma_iX <- matrix(1)
-    modglmm$X <- NULL
-    if (is.null(modglmm$eMat)) {
-      modglmm$obj.noK$XV <- NULL
-      modglmm$obj.noK$XVX <- NULL
-      modglmm$obj.noK$XXVX_inv <- NULL
-      modglmm$obj.noK$XVX_inv <- NULL
-      modglmm$obj.noK$XVX_inv_XV <- NULL
-    }
-  }
   gc()
   tau <- modglmm$theta
   N <- length(modglmm$mu)

@@ -303,13 +303,6 @@ SPAGMMATtest <- function(bgenFile = "",
   }
 
 
-  nsample <- length(unique(obj.model.List[[1]]$sampleID))
-  cateVarRatioMaxMACVecInclude <- c(cateVarRatioMaxMACVecInclude, nsample)
-
-  # print("setSAIGEobjInCPP -1b")
-  # print_g_n_unique()
-
-  # in Geno.R
   sampleIDs_for_geno <- as.character(obj.model.List[[1]]$sampleID)
   if (is_cell_level_genotype) {
     cell_ids <- obj.model.List[[1]]$barcode
@@ -326,8 +319,19 @@ SPAGMMATtest <- function(bgenFile = "",
       stop("Cell-level genotype option requires unique cell IDs. Remove duplicates or disable is_cell_level_genotype.")
     }
     sampleIDs_for_geno <- as.character(cell_ids)
+    for (omi in seq_along(obj.model.List)) {
+      obj.model.List[[omi]]$sampleID <- sampleIDs_for_geno
+    }
   }
 
+  nsample <- length(unique(obj.model.List[[1]]$sampleID))
+  cateVarRatioMaxMACVecInclude <- c(cateVarRatioMaxMACVecInclude, nsample)
+  has_repeated_samples <- sum(duplicated(obj.model.List[[1]]$sampleID)) > 0
+
+  # print("setSAIGEobjInCPP -1b")
+  # print_g_n_unique()
+
+  # in Geno.R
   objGeno <- setGenoInput(
     bgenFile = bgenFile,
     bgenFileIndex = bgenFileIndex,
@@ -455,7 +459,7 @@ SPAGMMATtest <- function(bgenFile = "",
   varWeights_gxe <- NULL
 
   ## Set up the sample level summary statistics. This is specifically for data sets with repeated measurements
-  if (sum(duplicated(obj.model.List[[1]]$sampleID)) > 0) {
+  if (has_repeated_samples && !is_cell_level_genotype) {
     Xsample <- list()
     Vsample <- list()
     XVsample <- list()
@@ -610,7 +614,7 @@ SPAGMMATtest <- function(bgenFile = "",
 
   # print("XXVXsample_inv")
   # print(XXVXsample_inv)
-  if (sum(duplicated(obj.model.List[[1]]$sampleID)) > 0) {
+  if (has_repeated_samples && !is_cell_level_genotype) {
     if (FALSE) {
       print("XXVXsample_inv")
       print(length(XVXsample))
@@ -730,7 +734,8 @@ SPAGMMATtest <- function(bgenFile = "",
       t_res_gxe = res_gxe,
       t_mu2_gxe = mu2_gxe,
       t_mu_gxe = mu_gxe,
-      t_varWeights_gxe = varWeights_gxe
+      t_varWeights_gxe = varWeights_gxe,
+      t_is_cell_level_genotype = is_cell_level_genotype
     )
     # }
 
@@ -742,7 +747,26 @@ SPAGMMATtest <- function(bgenFile = "",
     # print("ratioVecList")
     # print(ratioVecList)
   } else {
-    # }
+    add_rows <- function(acc, value) {
+      if (is.null(value)) {
+        return(acc)
+      }
+      value <- as.matrix(value)
+      if (is.null(acc)) {
+        return(value)
+      }
+      rbind(acc, value)
+    }
+    add_cols <- function(acc, value) {
+      if (is.null(value)) {
+        return(acc)
+      }
+      value <- as.matrix(value)
+      if (is.null(acc)) {
+        return(value)
+      }
+      cbind(acc, value)
+    }
     X <- NULL
     V <- NULL
     XV <- NULL
@@ -764,23 +788,40 @@ SPAGMMATtest <- function(bgenFile = "",
     for (oml in 1:length(obj.model.List)) {
       obj.model <- obj.model.List[[oml]]
       traitType <- c(traitType, obj.model$traitType)
-      # XVX = rbind(XVX, obj.model$obj.noK$XVX)
-      XXVX_inv <- rbind(XXVX_inv, obj.model$obj.noK$XXVX_inv)
-      XV <- rbind(XV, obj.model$obj.noK$XV)
-      # XVX_inv_XV = rbind(XVX_inv_XV, obj.model$obj.noK$XVX_inv_XV)
-      Sigma_iXXSigma_iX <- rbind(Sigma_iXXSigma_iX, obj.model$Sigma_iXXSigma_iX)
-      # X = rbind(X, obj.model$X)
-      # S_a = cbind(S_a, obj.model$obj.noK$S_a)
-      res <- cbind(res, obj.model$residuals)
-      mu2 <- cbind(mu2, obj.model$mu2)
-      mu <- cbind(mu, obj.model$mu)
+      if (is_cell_level_genotype) {
+        missing_fields <- c(
+          if (is.null(obj.model$X)) "X",
+          if (is.null(obj.model$obj.noK$XV)) "obj.noK$XV",
+          if (is.null(obj.model$obj.noK$XVX)) "obj.noK$XVX",
+          if (is.null(obj.model$obj.noK$XXVX_inv)) "obj.noK$XXVX_inv",
+          if (is.null(obj.model$obj.noK$XVX_inv_XV)) "obj.noK$XVX_inv_XV",
+          if (is.null(obj.model$obj.noK$S_a)) "obj.noK$S_a"
+        )
+        if (length(missing_fields) > 0) {
+          stop(
+            "The null model file lacks required matrices (",
+            paste(missing_fields, collapse = ", "),
+            "). Please re-run Step1 with --isShrinkModelOutput FALSE so cell-level genotypes can be analyzed."
+          )
+        }
+      }
+      XVX <- add_rows(XVX, obj.model$obj.noK$XVX)
+      XXVX_inv <- add_rows(XXVX_inv, obj.model$obj.noK$XXVX_inv)
+      XV <- add_rows(XV, obj.model$obj.noK$XV)
+      XVX_inv_XV <- add_rows(XVX_inv_XV, obj.model$obj.noK$XVX_inv_XV)
+      Sigma_iXXSigma_iX <- add_rows(Sigma_iXXSigma_iX, obj.model$Sigma_iXXSigma_iX)
+      X <- add_rows(X, obj.model$X)
+      S_a <- add_cols(S_a, obj.model$obj.noK$S_a)
+      res <- add_cols(res, obj.model$residuals)
+      mu2 <- add_cols(mu2, obj.model$mu2)
+      mu <- add_cols(mu, obj.model$mu)
 
-      theta <- cbind(theta, obj.model$theta)
-      y <- cbind(y, obj.model$y)
-      offset <- cbind(offset, obj.model$offset)
-      obj_cc_res.out <- cbind(obj_cc_res.out, obj.model$obj_cc$res.out)
-      tauVal_sp <- cbind(tauVal_sp, obj.model$tauVal_sp)
-      varWeights <- cbind(varWeights, obj.model$varWeights)
+      theta <- add_cols(theta, obj.model$theta)
+      y <- add_cols(y, obj.model$y)
+      offset <- add_cols(offset, obj.model$offset)
+      obj_cc_res.out <- add_cols(obj_cc_res.out, obj.model$obj_cc$res.out)
+      tauVal_sp <- add_cols(tauVal_sp, obj.model$tauVal_sp)
+      varWeights <- add_cols(varWeights, obj.model$varWeights)
     }
 
     if (isgxe_vec[1]) {
@@ -868,7 +909,8 @@ SPAGMMATtest <- function(bgenFile = "",
       t_res_gxe = res_gxe,
       t_mu2_gxe = mu2_gxe,
       t_mu_gxe = mu_gxe,
-      t_varWeights_gxe = varWeights_gxe
+      t_varWeights_gxe = varWeights_gxe,
+      t_is_cell_level_genotype = is_cell_level_genotype
     )
   }
 

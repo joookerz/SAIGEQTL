@@ -132,6 +132,7 @@ setGenoInput <- function(bgenFile = "",
                          AlleleOrder = NULL,
                          sampleInModel = NULL,
                          isCellLevelGenotype = FALSE) {
+  set_cell_level_genotype_flag(isCellLevelGenotype)
   if (isCellLevelGenotype) {
     if (any(duplicated(sampleInModel))) {
       stop("sampleInModel contains duplicated IDs while isCellLevelGenotype=TRUE. Provide unique cell IDs.")
@@ -200,7 +201,7 @@ setGenoInput <- function(bgenFile = "",
     # samplesInGeno = sampleInfo[,1]
     # SampleIDs = updateSampleIDs(SampleIDs, samplesInGeno)
     # markerInfo$ID = paste0(markerInfo$CHROM,":", markerInfo$POS ,"_", markerInfo$REF, "/", markerInfo$ALT)
-    setPLINKobjInCPP(bimFile, famFile, bedFile, sampleInModel, AlleleOrder)
+    setPLINKobjInCPP(bimFile, famFile, bedFile, sampleInModel, AlleleOrder, isCellLevelGenotype)
   }
 
   ########## ----------  BGEN format ---------- ##########
@@ -266,7 +267,7 @@ setGenoInput <- function(bgenFile = "",
 
     setkeyv(markerInfo, c("ID", "ID2"))
     # markerInfo$ID2 = paste0(markerInfo$CHROM,":", markerInfo$POS ,"_", markerInfo$ALT, "/", markerInfo$REF)
-    setBGENobjInCPP(bgenFile, bgenFileIndex, t_SampleInBgen = samplesInGeno, t_SampleInModel = sampleInModel, AlleleOrder)
+    setBGENobjInCPP(bgenFile, bgenFileIndex, t_SampleInBgen = samplesInGeno, t_SampleInModel = sampleInModel, AlleleOrder, isCellLevelGenotype)
   }
 
 
@@ -406,7 +407,7 @@ setGenoInput <- function(bgenFile = "",
       vcfFileIndex <- paste(vcfFile, ".s1r", sep = "")
     }
 
-    setVCFobjInCPP(vcfFile, vcfFileIndex, vcfField, t_SampleInModel = sampleInModel)
+    setVCFobjInCPP(vcfFile, vcfFileIndex, vcfField, t_SampleInModel = sampleInModel, isCellLevelGenotype)
     if (!is.null(IDsToInclude)) {
       SNPlist <- paste(c("set1", IDsToInclude), collapse = "\t")
       in_chrom <- "fake_chrom"

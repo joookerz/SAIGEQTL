@@ -175,7 +175,8 @@ void setPLINKobjInCPP(std::string t_bimFile,
                       std::string t_famFile,
                       std::string t_bedFile,
                       std::vector<std::string> & t_SampleInModel,
-                      std::string t_AlleleOrder);
+                      std::string t_AlleleOrder,
+                      bool t_is_cell_level_genotype);
 
 
 
@@ -183,12 +184,16 @@ void setBGENobjInCPP(std::string t_bgenFileName,
                      std::string t_bgenFileIndex,
                      std::vector<std::string> & t_SampleInBgen,
                      std::vector<std::string> & t_SampleInModel,
-                     std::string t_AlleleOrder);
+                     std::string t_AlleleOrder,
+                     bool t_is_cell_level_genotype);
 
 void setVCFobjInCPP(std::string t_vcfFileName,
             std::string t_vcfFileIndex,
             std::string t_vcfField,
-            std::vector<std::string> & t_SampleInModel);
+            std::vector<std::string> & t_SampleInModel,
+            bool t_is_cell_level_genotype);
+
+void set_cell_level_genotype_flag(bool t_is_cell_level);
 
 
 void setSAIGEobjInCPP(arma::mat & t_XVX,
@@ -243,7 +248,8 @@ void setSAIGEobjInCPP(arma::mat & t_XVX,
         arma::mat & t_res_gxe,
         arma::mat & t_mu2_gxe,
         arma::mat & t_mu_gxe,
-        arma::mat & t_varWeights_gxe
+        arma::mat & t_varWeights_gxe,
+        bool t_is_cell_level_genotype
         );
 
 

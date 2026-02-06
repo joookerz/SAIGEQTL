@@ -2,10 +2,22 @@
 
 # options(stringsAsFactors=F, scipen = 999)
 options(stringsAsFactors = F)
+options(error = function(e) {
+  print(e)
+  traceback()
+  quit(save = "no", status = 1)
+})
 
 library(optparse)
 library(data.table)
 library(methods)
+if (Sys.getenv("SAIGEQTL_USE_SEQUENTIAL_FUTURE", "") == "1") {
+  suppressWarnings({
+    if (requireNamespace("future", quietly = TRUE)) {
+      future::plan(future::sequential)
+    }
+  })
+}
 
 option_list <- list(
   make_option("--vcfFile",

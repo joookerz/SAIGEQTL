@@ -126,6 +126,7 @@ arma::mat g_emat;
 arma::fmat g_emat_f;
 bool g_isgxe;
 double g_pval_cutoff_for_gxe;
+bool g_is_cell_level_genotype = false;
 
 // [[Rcpp::export]]
 void setAssocTest_GlobalVarsInCPP(std::string t_impute_method,
@@ -192,6 +193,11 @@ void setMarker_GlobalVarsInCPP(
 {
   g_isOutputMoreDetails = t_isOutputMoreDetails;
   g_marker_chunksize = t_marker_chunksize;
+}
+
+// [[Rcpp::export]]
+void set_cell_level_genotype_flag(bool t_is_cell_level){
+  g_is_cell_level_genotype = t_is_cell_level;
 }
 
 
@@ -1225,8 +1231,10 @@ void setPLINKobjInCPP(std::string t_bimFile,
                       std::string t_famFile,
                       std::string t_bedFile,
                       std::vector<std::string> & t_SampleInModel,
-                      std::string t_AlleleOrder)
+                      std::string t_AlleleOrder,
+                      bool t_is_cell_level_genotype)
 {
+  g_is_cell_level_genotype = t_is_cell_level_genotype;
   ptr_gPLINKobj = new PLINK::PlinkClass(t_bimFile,
                                         t_famFile,
                                         t_bedFile,
@@ -1241,8 +1249,10 @@ void setBGENobjInCPP(std::string t_bgenFileName,
                      std::string t_bgenFileIndex,
                      std::vector<std::string> & t_SampleInBgen,
                      std::vector<std::string> & t_SampleInModel,
-                     std::string t_AlleleOrder)
+                     std::string t_AlleleOrder,
+                     bool t_is_cell_level_genotype)
 {
+  g_is_cell_level_genotype = t_is_cell_level_genotype;
   std::cout << "t_SampleInBgen " << t_SampleInBgen.size() << std::endl;
   ptr_gBGENobj = new BGEN::BgenClass(t_bgenFileName,
                                      t_bgenFileIndex,
@@ -1259,11 +1269,13 @@ void setBGENobjInCPP(std::string t_bgenFileName,
 void setVCFobjInCPP(std::string t_vcfFileName,
             std::string t_vcfFileIndex,
             std::string t_vcfField,
-            std::vector<std::string> & t_SampleInModel)
+            std::vector<std::string> & t_SampleInModel,
+            bool t_is_cell_level_genotype)
 {
+  g_is_cell_level_genotype = t_is_cell_level_genotype;
   ptr_gVCFobj = new VCF::VcfClass(t_vcfFileName,
-		  		t_vcfFileIndex,
-				t_vcfField,
+			  		t_vcfFileIndex,
+					t_vcfField,
 				false,
 				t_SampleInModel);
 
@@ -1329,7 +1341,8 @@ void setSAIGEobjInCPP(arma::mat & t_XVX,
 	arma::mat & t_res_gxe,
 	arma::mat & t_mu2_gxe,
 	arma::mat & t_mu_gxe,
-	arma::mat & t_varWeights_gxe
+	arma::mat & t_varWeights_gxe,
+	bool t_is_cell_level_genotype
 	)
 {
 	//t_SigmaMat_sp.print("t_SigmaMat_sp");
@@ -1390,7 +1403,8 @@ void setSAIGEobjInCPP(arma::mat & t_XVX,
         t_res_gxe,
         t_mu2_gxe,
         t_mu_gxe,
-        t_varWeights_gxe);
+        t_varWeights_gxe,
+	t_is_cell_level_genotype);
   //ptr_gSAIGEobj->m_flagSparseGRM = false;
 }
 
@@ -4238,6 +4252,25 @@ arma::sp_mat getSparseSigma_new(){
 
 // [[Rcpp::export]]
 void set_I_longl_mat(arma::sp_mat & t_Ilongmat, arma::vec & t_I_longl_vec){
+	if(g_is_cell_level_genotype){
+		arma::uword n = t_Ilongmat.n_rows;
+		arma::sp_mat eyeMat = arma::speye<arma::sp_mat>(n, n);
+	        g_I_longl_mat = arma::conv_to< arma::sp_fmat >::from(eyeMat);
+		g_I_longl_mat_t = g_I_longl_mat.t();
+		if(n == 0){
+			g_I_longl_vec.reset();
+			g_I_start_indices.reset();
+			return;
+		}
+		arma::uvec seq = arma::regspace<arma::uvec>(0, n - 1);
+		g_I_longl_vec = seq;
+		g_I_start_indices.set_size(n + 1);
+		for(arma::uword i = 0; i < n; ++i){
+			g_I_start_indices(i) = i;
+		}
+		g_I_start_indices(n) = n;
+		return;
+	}
         arma::sp_fmat t_Kmat_new = arma::conv_to< arma::sp_fmat >::from(t_Ilongmat);
         g_I_longl_mat = t_Kmat_new;
         arma::uvec t_I_longl_vec_new = arma::conv_to< arma::uvec >::from(t_I_longl_vec);

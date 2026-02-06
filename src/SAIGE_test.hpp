@@ -127,6 +127,7 @@ arma::mat m_mu_gxe_mt;
 arma::mat m_varWeights_gxe_mt;
 
 bool m_is_gxe;
+bool m_is_cell_level_genotype;
 arma::mat    m_XVX_mt;
 arma::mat    m_XV_mt;
 arma::mat    m_XXVX_inv_mt;
@@ -204,7 +205,8 @@ std::vector<std::ofstream> OutFile_single_vec;
         arma::mat & t_res_gxe,
         arma::mat & t_mu2_gxe,
         arma::mat & t_mu_gxe,
-        arma::mat & t_varWeights_gxe	);
+        arma::mat & t_varWeights_gxe,
+        bool t_is_cell_level_genotype	);
 
 
    void set_seed(unsigned int seed);

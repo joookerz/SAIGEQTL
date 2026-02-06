@@ -33,6 +33,10 @@ setMarker_GlobalVarsInCPP <- function(t_isOutputMoreDetails, t_marker_chunksize)
     invisible(.Call('_SAIGEQTL_setMarker_GlobalVarsInCPP', PACKAGE = 'SAIGEQTL', t_isOutputMoreDetails, t_marker_chunksize))
 }
 
+set_cell_level_genotype_flag <- function(t_is_cell_level) {
+    invisible(.Call('_SAIGEQTL_set_cell_level_genotype_flag', PACKAGE = 'SAIGEQTL', t_is_cell_level))
+}
+
 setRegion_GlobalVarsInCPP <- function(t_max_maf_region, t_max_markers_region, t_MACCutoff_to_CollapseUltraRare, t_min_gourpmac_for_burdenonly) {
     invisible(.Call('_SAIGEQTL_setRegion_GlobalVarsInCPP', PACKAGE = 'SAIGEQTL', t_max_maf_region, t_max_markers_region, t_MACCutoff_to_CollapseUltraRare, t_min_gourpmac_for_burdenonly))
 }
@@ -49,20 +53,20 @@ Unified_getSampleSizeinAnalysis <- function(t_genoType) {
     .Call('_SAIGEQTL_Unified_getSampleSizeinAnalysis', PACKAGE = 'SAIGEQTL', t_genoType)
 }
 
-setPLINKobjInCPP <- function(t_bimFile, t_famFile, t_bedFile, t_SampleInModel, t_AlleleOrder) {
-    invisible(.Call('_SAIGEQTL_setPLINKobjInCPP', PACKAGE = 'SAIGEQTL', t_bimFile, t_famFile, t_bedFile, t_SampleInModel, t_AlleleOrder))
+setPLINKobjInCPP <- function(t_bimFile, t_famFile, t_bedFile, t_SampleInModel, t_AlleleOrder, t_is_cell_level_genotype) {
+    invisible(.Call('_SAIGEQTL_setPLINKobjInCPP', PACKAGE = 'SAIGEQTL', t_bimFile, t_famFile, t_bedFile, t_SampleInModel, t_AlleleOrder, t_is_cell_level_genotype))
 }
 
-setBGENobjInCPP <- function(t_bgenFileName, t_bgenFileIndex, t_SampleInBgen, t_SampleInModel, t_AlleleOrder) {
-    invisible(.Call('_SAIGEQTL_setBGENobjInCPP', PACKAGE = 'SAIGEQTL', t_bgenFileName, t_bgenFileIndex, t_SampleInBgen, t_SampleInModel, t_AlleleOrder))
+setBGENobjInCPP <- function(t_bgenFileName, t_bgenFileIndex, t_SampleInBgen, t_SampleInModel, t_AlleleOrder, t_is_cell_level_genotype) {
+    invisible(.Call('_SAIGEQTL_setBGENobjInCPP', PACKAGE = 'SAIGEQTL', t_bgenFileName, t_bgenFileIndex, t_SampleInBgen, t_SampleInModel, t_AlleleOrder, t_is_cell_level_genotype))
 }
 
-setVCFobjInCPP <- function(t_vcfFileName, t_vcfFileIndex, t_vcfField, t_SampleInModel) {
-    invisible(.Call('_SAIGEQTL_setVCFobjInCPP', PACKAGE = 'SAIGEQTL', t_vcfFileName, t_vcfFileIndex, t_vcfField, t_SampleInModel))
+setVCFobjInCPP <- function(t_vcfFileName, t_vcfFileIndex, t_vcfField, t_SampleInModel, t_is_cell_level_genotype) {
+    invisible(.Call('_SAIGEQTL_setVCFobjInCPP', PACKAGE = 'SAIGEQTL', t_vcfFileName, t_vcfFileIndex, t_vcfField, t_SampleInModel, t_is_cell_level_genotype))
 }
 
-setSAIGEobjInCPP <- function(t_XVX, t_XXVX_inv, t_XV, t_XVX_inv_XV, t_Sigma_iXXSigma_iX, t_X, t_S_a, t_res, t_mu2, t_mu, t_varRatio_sparse, t_varRatio_null, t_varRatio_null_sample, t_varRatio_null_noXadj, t_varRatio_null_eg, t_varRatio_sparse_eg, t_cateVarRatioMinMACVecExclude, t_cateVarRatioMaxMACVecInclude, t_SPA_Cutoff, t_tauvec, t_varWeightsvec, t_traitType, t_y, t_impute_method, t_flagSparseGRM, t_isnoadjCov, t_pval_cutoff_for_fastTest, t_isCondition, t_condition_genoIndex, t_is_Firth_beta, t_pCutoffforFirth, t_offset, t_resout, t_SigmaMat_sp, t_tauVal_sp, t_Ilongmat, t_I_longl_vec, t_Tlongmat, t_T_longl_vec, t_is_EmpSPA, t_cumul, t_is_gxe, t_XV_gxe, t_X_gxe, t_XVX_inv_XV_gxe, t_XVX_gxe, t_S_a_gxe, t_XXVX_inv_gxe, t_y_gxe, t_res_gxe, t_mu2_gxe, t_mu_gxe, t_varWeights_gxe) {
-    invisible(.Call('_SAIGEQTL_setSAIGEobjInCPP', PACKAGE = 'SAIGEQTL', t_XVX, t_XXVX_inv, t_XV, t_XVX_inv_XV, t_Sigma_iXXSigma_iX, t_X, t_S_a, t_res, t_mu2, t_mu, t_varRatio_sparse, t_varRatio_null, t_varRatio_null_sample, t_varRatio_null_noXadj, t_varRatio_null_eg, t_varRatio_sparse_eg, t_cateVarRatioMinMACVecExclude, t_cateVarRatioMaxMACVecInclude, t_SPA_Cutoff, t_tauvec, t_varWeightsvec, t_traitType, t_y, t_impute_method, t_flagSparseGRM, t_isnoadjCov, t_pval_cutoff_for_fastTest, t_isCondition, t_condition_genoIndex, t_is_Firth_beta, t_pCutoffforFirth, t_offset, t_resout, t_SigmaMat_sp, t_tauVal_sp, t_Ilongmat, t_I_longl_vec, t_Tlongmat, t_T_longl_vec, t_is_EmpSPA, t_cumul, t_is_gxe, t_XV_gxe, t_X_gxe, t_XVX_inv_XV_gxe, t_XVX_gxe, t_S_a_gxe, t_XXVX_inv_gxe, t_y_gxe, t_res_gxe, t_mu2_gxe, t_mu_gxe, t_varWeights_gxe))
+setSAIGEobjInCPP <- function(t_XVX, t_XXVX_inv, t_XV, t_XVX_inv_XV, t_Sigma_iXXSigma_iX, t_X, t_S_a, t_res, t_mu2, t_mu, t_varRatio_sparse, t_varRatio_null, t_varRatio_null_sample, t_varRatio_null_noXadj, t_varRatio_null_eg, t_varRatio_sparse_eg, t_cateVarRatioMinMACVecExclude, t_cateVarRatioMaxMACVecInclude, t_SPA_Cutoff, t_tauvec, t_varWeightsvec, t_traitType, t_y, t_impute_method, t_flagSparseGRM, t_isnoadjCov, t_pval_cutoff_for_fastTest, t_isCondition, t_condition_genoIndex, t_is_Firth_beta, t_pCutoffforFirth, t_offset, t_resout, t_SigmaMat_sp, t_tauVal_sp, t_Ilongmat, t_I_longl_vec, t_Tlongmat, t_T_longl_vec, t_is_EmpSPA, t_cumul, t_is_gxe, t_XV_gxe, t_X_gxe, t_XVX_inv_XV_gxe, t_XVX_gxe, t_S_a_gxe, t_XXVX_inv_gxe, t_y_gxe, t_res_gxe, t_mu2_gxe, t_mu_gxe, t_varWeights_gxe, t_is_cell_level_genotype) {
+    invisible(.Call('_SAIGEQTL_setSAIGEobjInCPP', PACKAGE = 'SAIGEQTL', t_XVX, t_XXVX_inv, t_XV, t_XVX_inv_XV, t_Sigma_iXXSigma_iX, t_X, t_S_a, t_res, t_mu2, t_mu, t_varRatio_sparse, t_varRatio_null, t_varRatio_null_sample, t_varRatio_null_noXadj, t_varRatio_null_eg, t_varRatio_sparse_eg, t_cateVarRatioMinMACVecExclude, t_cateVarRatioMaxMACVecInclude, t_SPA_Cutoff, t_tauvec, t_varWeightsvec, t_traitType, t_y, t_impute_method, t_flagSparseGRM, t_isnoadjCov, t_pval_cutoff_for_fastTest, t_isCondition, t_condition_genoIndex, t_is_Firth_beta, t_pCutoffforFirth, t_offset, t_resout, t_SigmaMat_sp, t_tauVal_sp, t_Ilongmat, t_I_longl_vec, t_Tlongmat, t_T_longl_vec, t_is_EmpSPA, t_cumul, t_is_gxe, t_XV_gxe, t_X_gxe, t_XVX_inv_XV_gxe, t_XVX_gxe, t_S_a_gxe, t_XXVX_inv_gxe, t_y_gxe, t_res_gxe, t_mu2_gxe, t_mu_gxe, t_varWeights_gxe, t_is_cell_level_genotype))
 }
 
 RegionSetUpConditional_binary_InCPP <- function(t_weight_cond) {
@@ -716,4 +720,3 @@ mult_den_sp_to_sp <- function(a, b) {
 gen_sp <- function(a) {
     .Call('_SAIGEQTL_gen_sp', PACKAGE = 'SAIGEQTL', a)
 }
-
