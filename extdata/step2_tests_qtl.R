@@ -40,6 +40,10 @@ option_list <- list(
     type = "character", default = "",
     help = "Path to the file that contains one column for IDs of samples in the dosage file. For version >= 0.38, this file is only needed for bgen files. "
   ),
+  make_option("--use_cell_level_genotype",
+    type = "logical", default = FALSE,
+    help = "Set TRUE when the genotype file already provides one sample per cell (no donor-level collapsing). Requires cell IDs in the Step1 null model. [default=FALSE]"
+  ),
   make_option("--bedFile",
     type = "character", default = "",
     help = "Path to bed file (PLINK)"
@@ -377,6 +381,7 @@ SPAGMMATtest(
   bgenFile = opt$bgenFile,
   bgenFileIndex = opt$bgenFileIndex,
   sampleFile = opt$sampleFile,
+  is_cell_level_genotype = opt$use_cell_level_genotype,
   bedFile = opt$bedFile,
   bimFile = opt$bimFile,
   famFile = opt$famFile,

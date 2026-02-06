@@ -3,6 +3,7 @@
 #' @param bgenFile character. Path to bgen file. Currently version 1.2 with 8 bit compression is supported
 #' @param bgenFileIndex character. Path to the .bgi file (index of the bgen file)
 #' @param sampleFile character. Path to the file that contains one column for IDs of samples in the bgen file. The file does not contain header lines.
+#' @param is_cell_level_genotype logical. Set TRUE when the genotype file already encodes one row per cell (no donor-level collapsing). Requires Step1 to save cell IDs via `cellIDColinphenoFile`. By default, FALSE.
 #' @param vcfFile character. Path to vcf file
 #' @param vcfFileIndex character. Path to vcf index file. Indexed by tabix. Path to index for vcf file by tabix, .csi file using 'tabix --csi -p vcf file.vcf.gz'
 #' @param vcfField character. genotype field in vcf file to use. "DS" for dosages or "GT" for genotypes. By default, "DS".
@@ -63,6 +64,7 @@
 SPAGMMATtest <- function(bgenFile = "",
                          bgenFileIndex = "",
                          sampleFile = "",
+                         is_cell_level_genotype = FALSE,
                          vcfFile = "",
                          vcfFileIndex = "",
                          vcfField = "DS",
@@ -308,6 +310,24 @@ SPAGMMATtest <- function(bgenFile = "",
   # print_g_n_unique()
 
   # in Geno.R
+  sampleIDs_for_geno <- as.character(obj.model.List[[1]]$sampleID)
+  if (is_cell_level_genotype) {
+    cell_ids <- obj.model.List[[1]]$barcode
+    if (is.null(cell_ids) || length(cell_ids) == 0) {
+      stop("is_cell_level_genotype=TRUE requires Step1 to store cell IDs. Please re-run Step1 with --cellIDColinphenoFile and rerun Step2.")
+    }
+    if (length(cell_ids) != length(sampleIDs_for_geno)) {
+      stop("Lengths of cell IDs and null-model samples do not match. Please check the Step1 output.")
+    }
+    if (any(is.na(cell_ids))) {
+      stop("Missing values detected in the cell ID vector. Please remove missing IDs or disable is_cell_level_genotype.")
+    }
+    if (any(duplicated(cell_ids))) {
+      stop("Cell-level genotype option requires unique cell IDs. Remove duplicates or disable is_cell_level_genotype.")
+    }
+    sampleIDs_for_geno <- as.character(cell_ids)
+  }
+
   objGeno <- setGenoInput(
     bgenFile = bgenFile,
     bgenFileIndex = bgenFileIndex,
@@ -324,7 +344,8 @@ SPAGMMATtest <- function(bgenFile = "",
     rangestoIncludeFile = rangestoIncludeFile,
     chrom = chrom,
     AlleleOrder = AlleleOrder,
-    sampleInModel = obj.model.List[[1]]$sampleID
+    sampleInModel = sampleIDs_for_geno,
+    isCellLevelGenotype = is_cell_level_genotype
   )
 
   genoType <- objGeno$genoType

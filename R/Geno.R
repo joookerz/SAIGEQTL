@@ -130,8 +130,14 @@ setGenoInput <- function(bgenFile = "",
                          rangestoIncludeFile = "",
                          chrom = "",
                          AlleleOrder = NULL,
-                         sampleInModel = NULL) {
-  if (any(duplicated(sampleInModel))) {
+                         sampleInModel = NULL,
+                         isCellLevelGenotype = FALSE) {
+  if (isCellLevelGenotype) {
+    if (any(duplicated(sampleInModel))) {
+      stop("sampleInModel contains duplicated IDs while isCellLevelGenotype=TRUE. Provide unique cell IDs.")
+    }
+    set_dup_sample_index(integer(0))
+  } else if (any(duplicated(sampleInModel))) {
     set_dup_sample_index_inR(sampleInModel)
     sampleInModel <- unique(sampleInModel)
   }
