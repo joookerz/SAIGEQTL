@@ -4,6 +4,8 @@
 #include "UTIL.hpp"
 #include <sys/time.h>
 
+extern bool g_is_cell_level_genotype;
+
 arma::vec nb(unsigned int n){
   return(Rcpp::rbinom(n,1,0.5));
 }
@@ -58,8 +60,8 @@ void imputeGeno(arma::vec& t_GVec,
 bool imputeGenoAndFlip(arma::vec& t_GVec, 
                        double & t_altFreq,
 		       double & t_altCount, 
-                       std::vector<uint32_t> & t_indexForMissing,
-                       std::string t_impute_method,
+                      std::vector<uint32_t> & t_indexForMissing,
+                      std::string t_impute_method,
 		       double t_dosage_zerod_cutoff,
 		       double t_dosage_zerod_MAC_cutoff, 
 		       double & t_MAC,
@@ -72,6 +74,24 @@ bool imputeGenoAndFlip(arma::vec& t_GVec,
   int nMissing = t_indexForMissing.size();
   uint dosagesSize = t_GVec.size();
   double imputeG = 0;
+  double ploidy = g_is_cell_level_genotype ? 1.0 : 2.0;
+  if(g_is_cell_level_genotype){
+    for(uint i = 0; i < dosagesSize; i++){
+      double val = t_GVec(i);
+      if(std::isnan(val) || val < 0){
+        t_GVec(i) = 0;
+        t_indexZero.push_back(i);
+      }else if(val == 0){
+        t_indexZero.push_back(i);
+      }else{
+        t_indexNonZero.push_back(i);
+      }
+    }
+    t_altCount = arma::sum(t_GVec);
+    t_altFreq = 0.5;
+    t_MAC = arma::sum(arma::abs(t_GVec));
+    return flip;
+  }
   if(t_altFreq > 0.5){
     flip = true;
     t_GVec = 2 - t_GVec;
@@ -114,10 +134,10 @@ switch(string_to_case.at(t_impute_method)) {
 
   //if(nMissing > 0 || t_dosage_zerod_cutoff > 0){
      t_altCount = arma::sum(t_GVec);
-     t_altFreq = t_altCount / (2*dosagesSize);
+     t_altFreq = t_altCount / (ploidy*dosagesSize);
      if(flip){
 	t_altFreq = 1 - t_altFreq;
-        t_altCount = 2*dosagesSize - t_altCount;	
+        t_altCount = ploidy*dosagesSize - t_altCount;	
 	//t_altCount = 2 * t_altFreq * dosagesSize;
      }	     
   //}

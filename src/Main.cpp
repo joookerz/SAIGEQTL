@@ -9,6 +9,7 @@
 #include <cstdio>         // std::remove
 #include <fstream>
 #include <string.h>
+#include <limits>
 // Currently, omp does not work well, will check it later
 // error: SET_VECTOR_ELT() can only be applied to a 'list', not a 'character'
 // remove all Rcpp::List to check if it works
@@ -403,6 +404,10 @@ void mainMarkerInCPP(
     double MAF = std::min(altFreq, 1 - altFreq);
     int nG = t_GVec.n_elem;
     double MAC = MAF * n * (1 - missingRate) *2;
+    if(g_is_cell_level_genotype){
+      MAF = std::numeric_limits<double>::infinity();
+      MAC = arma::sum(arma::abs(t_GVec));
+    }
    
    /*
    std::cout << "MAC " << MAC << std::endl;
@@ -420,7 +425,16 @@ void mainMarkerInCPP(
 
 
     // Quality Control (QC) based on missing rate, MAF, and MAC
-    if((missingRate > g_missingRate_cutoff) || (MAF < g_marker_minMAF_cutoff) || (MAC < g_marker_minMAC_cutoff || imputeInfo < g_marker_minINFO_cutoff)){
+    bool failsQC = false;
+    if(missingRate > g_missingRate_cutoff){
+      failsQC = true;
+    }
+    if(!g_is_cell_level_genotype){
+      if(MAF < g_marker_minMAF_cutoff || MAC < g_marker_minMAC_cutoff || imputeInfo < g_marker_minINFO_cutoff){
+        failsQC = true;
+      }
+    }
+    if(failsQC){
       continue;
     }else{
 
@@ -440,10 +454,16 @@ void mainMarkerInCPP(
      //printTime(timeoutput3, timeoutput4, "imputeGenoAndFlip");
    for(unsigned int i_mt = 0; i_mt < t_traitType.size(); i_mt++){
      int j_mt = i_mt*t_genoIndex.size()+i;
-     altFreqVec.at(j_mt) = altFreq;         // allele frequencies of ALT allele, this is not always < 0.5.
-     altCountsVec.at(j_mt) = altCounts;         // allele frequencies of ALT allele, this is not always < 0.5.
-//}    
-     MAC = std::min(altCounts, 2*n-altCounts);
+     double reportedAltFreq = g_is_cell_level_genotype ? std::numeric_limits<double>::quiet_NaN() : altFreq;
+     double reportedAltCounts = g_is_cell_level_genotype ? std::numeric_limits<double>::quiet_NaN() : altCounts;
+     altFreqVec.at(j_mt) = reportedAltFreq;
+     altCountsVec.at(j_mt) = reportedAltCounts;
+//}
+     if(g_is_cell_level_genotype){
+       MAC = arma::sum(arma::abs(t_GVec));
+     }else{
+       MAC = std::min(altCounts, 2*n-altCounts);
+     }
     
    /* 
     std::cout << "MAC " << MAC << std::endl; 
@@ -475,7 +495,8 @@ void mainMarkerInCPP(
       //indexZeroVec_arma = arma::find(t_GVec0 == 0.0);
       //indexNonZeroVec_arma = arma::find(t_GVec0 > 0.0);
       altCounts_new = arma::sum(t_GVec_cell);
-      altFreq_new = arma::mean(t_GVec_cell) /2 ;
+      double ploidy_scale = g_is_cell_level_genotype ? 1.0 : 2.0;
+      altFreq_new = arma::mean(t_GVec_cell) / ploidy_scale;
       //std::cout << "altCounts_new " << altCounts_new << std::endl;
       //
       //
@@ -886,7 +907,8 @@ void mainMarkerInCPP(
 	    std::cout << "t_GEVec.n_elem " << t_GEVec.n_elem << std::endl;
 	    std::cout << "t_GVec1.n_elem " << t_GVec1.n_elem << std::endl;
 	    //t_GEVec = gtildeVec % evec;
-	    altFreq_ge = arma::mean(t_GEVec)/2;
+    double ploidy_scale_ge = g_is_cell_level_genotype ? 1.0 : 2.0;
+    altFreq_ge = arma::mean(t_GEVec)/ploidy_scale_ge;
 	    is_gtilde_ge = false;
 	    gtildeVec_ge.clear();
 	    t_P2Vec_ge.clear();

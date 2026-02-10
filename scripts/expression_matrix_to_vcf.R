@@ -20,8 +20,8 @@ option_list <- list(
               help = "REF allele symbol used in the VCF [default=A]."),
   make_option("--alternate-allele", type = "character", default = "T",
               help = "ALT allele symbol used in the VCF [default=T]."),
-  make_option("--scale-mode", type = "character", default = "per_gene",
-              help = "per_gene or global scaling to map expression into [0,2] [default=per_gene]."),
+  make_option("--scale-mode", type = "character", default = "none",
+              help = "none (raw expression), per_gene, or global scaling [default=none]."),
   make_option("--global-min", type = "double", default = NA,
               help = "Optional global minimum for scaling (used when scale-mode=global)."),
   make_option("--global-max", type = "double", default = NA,
@@ -29,7 +29,7 @@ option_list <- list(
   make_option("--compress", type = "character", default = "bgzip",
               help = "Compression method: bgzip, gzip, or none [default=bgzip]."),
   make_option("--scaling-info", type = "character", default = NA,
-              help = "Optional TSV to save per-gene scaling factors for later back-transformation.")
+              help = "Optional TSV to save per-gene/global scaling factors.")
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
@@ -81,15 +81,23 @@ if (opt$`scale-mode` == "global") {
     scaled_mat[, j] <- 2 * scale_to_unit(vals, gmin, gmax)
     scale_df[j, `:=`(min = gmin, max = gmax)]
   }
+} else if (opt$`scale-mode` == "none") {
+  scaled_mat <- expr_mat
+  scale_df[, `:=`(min = NA_real_, max = NA_real_)]
 } else {
-  stop("scale-mode must be 'per_gene' or 'global'")
+  stop("scale-mode must be 'per_gene', 'global', or 'none'")
 }
 
 # Prepare VCF header
 sample_header <- paste(sample_order, collapse = "\t")
+format_desc <- if (opt$`scale-mode` == "none") {
+  "Raw expression values (no scaling applied)"
+} else {
+  "Scaled expression in [0,2]"
+}
 vcf_header <- c(
   "##fileformat=VCFv4.2",
-  "##FORMAT=<ID=DS,Number=1,Type=Float,Description=\"Scaled expression in [0,2]\">",
+  paste0("##FORMAT=<ID=DS,Number=1,Type=Float,Description=\"", format_desc, "\">"),
   paste0("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t", sample_header)
 )
 
@@ -126,10 +134,14 @@ if (compress == "bgzip") {
 if (!is.na(opt$`scaling-info`)) {
   fwrite(scale_df, opt$`scaling-info`, sep = "\t")
 }
-scale_factor_note <- if (opt$`scale-mode` == "global") {
-  paste0("global factor = (max-min)/2")
-} else {
-  "per-gene factors saved in scaling-info"
-}
 cat("VCF written to", out_path, "with", length(genes), "variants.\n")
-cat("Remember to rescale Step2 beta/SE by (max-min)/2 for each gene (", scale_factor_note, ").\n")
+if (opt$`scale-mode` != "none") {
+  scale_factor_note <- if (opt$`scale-mode` == "global") {
+    "global factor = (max-min)/2"
+  } else {
+    "per-gene factors saved in scaling-info"
+  }
+  cat("Remember to rescale Step2 beta/SE by (max-min)/2 for each gene (", scale_factor_note, ").\n")
+} else {
+  cat("Raw expression values stored in DS; no rescaling needed.\n")
+}

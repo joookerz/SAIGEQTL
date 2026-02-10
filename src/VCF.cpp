@@ -18,6 +18,8 @@
 
 #include "VCF.hpp"
 
+extern bool g_is_cell_level_genotype;
+
 
 
 
@@ -194,9 +196,9 @@ namespace VCF {
 	t_imputeInfo = 1.0;
        }
 
-       double dosage;
-       t_altCounts = 0;
-       int missing_cnt = 0;
+      double dosage;
+      t_altCounts = 0;
+      int missing_cnt = 0;
 
        dosages.clear();
        dosages.set_size(m_N);
@@ -220,20 +222,21 @@ namespace VCF {
               t_indexForNonZero.push_back(m_posSampleInModel[j]);
 	     }		    
             //dosagesforOneMarker[genetest_sample_idx_vcfDosage[i]] = *dose_it;
-            t_altCounts = t_altCounts + *dose_it;
+      t_altCounts = t_altCounts + *dose_it;
           }
         }
       }
 
+       double ploidy_scale = g_is_cell_level_genotype ? 1.0 : 2.0;
        if(missing_cnt > 0){
          if(missing_cnt == m_N){
            t_altFreq = 0;
          }else{
-           t_altFreq = t_altCounts / 2 / (double)(m_N - missing_cnt);
+           t_altFreq = t_altCounts / (ploidy_scale * (double)(m_N - missing_cnt));
          }
 	 t_missingRate = missing_cnt/double(m_N);
         }else{
-          t_altFreq = t_altCounts / 2 / (double)(m_N);
+          t_altFreq = t_altCounts / (ploidy_scale * (double)(m_N));
 	 t_missingRate = 0; 
         } 
      }else{

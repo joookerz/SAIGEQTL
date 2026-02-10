@@ -45,6 +45,7 @@ Rscript scripts/expression_matrix_to_vcf.R \
 - `expr_matrix.tsv` must have the first column `cell_id` and one column per gene (`gene_B`, …).
 - `cell_ids_in_step1.txt` is the ordered list of cells from Step1 (`modglmm$barcode`).
 - `gene_expr_scaling.tsv` stores each gene’s min/max for later rescaling.
+- By default (`--scale-mode none`) DS stores raw expression values, so no back-transformation is needed; if you prefer the 0–2 scaling used in earlier versions, switch to `--scale-mode per_gene` or `--scale-mode global`.
 
 Each gene becomes one VCF entry; the DS field contains the scaled expression for every cell.
 
