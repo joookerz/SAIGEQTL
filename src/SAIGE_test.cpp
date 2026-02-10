@@ -243,39 +243,38 @@ void SAIGEClass::scoreTest(arma::vec & t_GVec,
 
     S = S/m_tauvec_mt(0,m_itrait); 
 
+    bool use_exact_var = m_is_cell_level_genotype;
     double varRatioVal_var2 = m_varRatioVal;
+    if(use_exact_var){
+      varRatioVal_var2 = 1;
+    }
+    bool apply_projection = (m_isVarPsadj || use_exact_var) && (m_Sigma_iXXSigma_iX.n_elem > 1);
 
-   if(!m_flagSparseGRM_cur){
+    if(use_exact_var){
+      t_P2Vec = getSigma_G_V(t_gtilde, 500, 1e-5);
+      var2m = dot(t_P2Vec, t_gtilde);
+      if(apply_projection){
+        var2m = var2m - t_gtilde.t() * m_Sigma_iXXSigma_iX * m_X.t() * t_P2Vec;
+      }
+    }else if(!m_flagSparseGRM_cur){
       t_P2Vec = t_gtilde % (m_mu2_mt.col(m_itrait)) *(m_tauvec_mt(0,m_itrait)); 
-      //t_P2Vec = t_gtilde % m_mu2; 
       var2m = dot(t_P2Vec, t_gtilde);
     }else{
       if(m_SigmaMat_sp.n_rows > 2){	
-      //t_P2Vec = arma::spsolve(m_SigmaMat_sp, t_gtilde);
-      //std::cout << "m_startin " << m_startin << " m_endin " << m_endin << std::endl;
-      //arma::sp_mat m_SigmaMat_sp_firstcol = m_SigmaMat_sp.cols(m_startin, m_endin);
-      //m_SigmaMat_sp_firstcol.print("m_SigmaMat_sp_firstcol");
-      //t_gtilde.print("t_gtilde");
-      t_P2Vec = (m_SigmaMat_sp.cols(m_startin, m_endin)) * t_gtilde;
-
-      var2m = dot(t_P2Vec, t_gtilde);
-      //std::cout << "m_isVarPsadj " << m_isVarPsadj << std::endl;
-
-      if(m_isVarPsadj){
-	varRatioVal_var2 = 1;     
-	var2m = var2m - t_gtilde.t() * m_Sigma_iXXSigma_iX * m_X.t() * t_P2Vec;	
+        t_P2Vec = (m_SigmaMat_sp.cols(m_startin, m_endin)) * t_gtilde;
+        var2m = dot(t_P2Vec, t_gtilde);
+        if(apply_projection){
+          varRatioVal_var2 = 1;
+          var2m = var2m - t_gtilde.t() * m_Sigma_iXXSigma_iX * m_X.t() * t_P2Vec;	
+        }
+      }else{
+        t_P2Vec = getSigma_G_V(t_gtilde, 500, 1e-5);
+        var2m = dot(t_P2Vec, t_gtilde);
+        if(apply_projection){
+          varRatioVal_var2 = 1;      
+          var2m = var2m - t_gtilde.t() * m_Sigma_iXXSigma_iX * m_X.t() * t_P2Vec;	
+        }
       }
-     }else{
-	//t_P2Vec = m_sigmainvG_noV;
-      //std::cout << t_gtilde.n_elem <<  std::endl;
-      //#Sigma_iGE = getSigma_G_multiV(W, tauVecNew, GE_tilde, maxiterPCG, tolPCG, LOCO=FALSE)
-      t_P2Vec = getSigma_G_V(t_gtilde, 500, 1e-5);
-      var2m = dot(t_P2Vec, t_gtilde);
-      if(m_isVarPsadj){
-	varRatioVal_var2 = 1;      
-	var2m = var2m - t_gtilde.t() * m_Sigma_iXXSigma_iX * m_X.t() * t_P2Vec;	
-      }
-     }
     }
 
     var2 = var2m(0,0);
@@ -655,6 +654,9 @@ void SAIGEClass::getMarkerPval(arma::vec & t_GVec,
  if(t_isSparseGRM){
  	t_isnoadjCov = false;
  }
+ if(m_is_cell_level_genotype){
+ 	t_isnoadjCov = false;
+ }
   //std::cout << "t_isnoadjCov " << t_isnoadjCov << std::endl;
   //std::cout << "t_isSparseGRM " << t_isSparseGRM << std::endl;
 
@@ -881,6 +883,10 @@ if(t_isCondition){
 
 
 bool SAIGEClass::assignVarianceRatio(double MAC, bool issparseforVR, bool isnoXadj){
+    if(m_is_cell_level_genotype){
+        m_varRatioVal = 1;
+        return true;
+    }
     bool hasVarRatio = false;
     arma::vec m_varRatio;
     if(issparseforVR){
@@ -933,6 +939,10 @@ bool SAIGEClass::assignVarianceRatio(double MAC, bool issparseforVR, bool isnoXa
 
 
 bool SAIGEClass::assignVarianceRatio(double MAC, bool issparseforVR, bool isnoXadj, bool issample){
+    if(m_is_cell_level_genotype){
+        m_varRatioVal = 1;
+        return true;
+    }
     bool hasVarRatio = false;
     arma::vec m_varRatio;
     if(issparseforVR){
@@ -991,6 +1001,10 @@ bool SAIGEClass::assignVarianceRatio(double MAC, bool issparseforVR, bool isnoXa
 
 
 arma::vec SAIGEClass::assignVarianceRatioi_multi(arma::vec & MACvec, bool issparseforVR, bool isnoXadj){
+    if(m_is_cell_level_genotype){
+        arma::vec onesVec(MACvec.n_elem, arma::fill::ones);
+        return onesVec;
+    }
     bool hasVarRatio = false;
     arma::vec m_varRatio;
     if(issparseforVR){
@@ -1044,6 +1058,10 @@ arma::vec SAIGEClass::assignVarianceRatioi_multi(arma::vec & MACvec, bool isspar
 
 
 void SAIGEClass::assignSingleVarianceRatio(bool issparseforVR, bool isnoXadj){ 
+    if(m_is_cell_level_genotype){
+        m_varRatioVal = 1;
+        return;
+    }
     arma::rowvec m_varRatio;
     if(issparseforVR){
         m_varRatio = m_varRatio_sparse_mt.row(0);
@@ -1059,6 +1077,10 @@ void SAIGEClass::assignSingleVarianceRatio(bool issparseforVR, bool isnoXadj){
 
 
 void SAIGEClass::assignSingleVarianceRatio(bool issparseforVR, bool isnoXadj, bool issample){
+    if(m_is_cell_level_genotype){
+        m_varRatioVal = 1;
+        return;
+    }
     arma::rowvec m_varRatio;
     if(issparseforVR){
         m_varRatio = m_varRatio_sparse_mt.row(0);
@@ -1613,10 +1635,14 @@ void SAIGEClass::getMarkerPval_multi(arma::mat & t_GMat,
   //std::cout << "t_GMat here2a " << std::endl; 
 
   arma::vec varRatio_multi_vec;
-  if(m_varRatio_null.n_elem == 1){
-        assignSingleVarianceRatio(false, true);
+  if(m_is_cell_level_genotype){
+        m_varRatioVal = 1;
   }else{
-  	varRatio_multi_vec = assignVarianceRatioi_multi(t_MAC_vec, false, true);
+    if(m_varRatio_null.n_elem == 1){
+        assignSingleVarianceRatio(false, true);
+    }else{
+        varRatio_multi_vec = assignVarianceRatioi_multi(t_MAC_vec, false, true);
+    }
   }
 
 
@@ -1643,14 +1669,29 @@ std::cout << "t_GMatraw.n_elem " << t_GMatraw.n_elem << std::endl;
 
 
   //arma::mat t_GMat_center = t_GMat.each_row() - t_MAF_vec.t();
-  scoreTestFast_noadjCov_multi(t_GMat, t_MAF_vec, t_Beta_vec, t_seBeta_vec, t_pval_str_vec, t_Tstat_vec, t_var1_vec, t_var2_vec, t_pval_noadj_vec, varRatio_multi_vec);
-
-
-  //arma::vec StdStat_vec = arma::abs(t_Tstat_vec) / arma::sqrt(t_var1_vec);
-  //t_fastTestind_vec = arma::find(t_pval_noadj_vec < m_pval_cutoff_for_fastTest);
-  
-  //std::cout << "t_GMat here2b " << std::endl; 
-  t_pval_vec = t_pval_noadj_vec;
+  if(m_is_cell_level_genotype){
+    arma::mat t_GMat_tilde;
+    arma::mat t_P2Mat;
+    arma::vec t_gy_vec;
+    arma::vec empty_ratio;
+    getadjGFast_multi(t_GMat, t_GMat_tilde);
+    scoreTest_multi(t_GMat_tilde,
+                    t_Beta_vec,
+                    t_seBeta_vec,
+                    t_pval_str_vec,
+                    t_pval_vec,
+                    t_Tstat_vec,
+                    t_var1_vec,
+                    t_var2_vec,
+                    t_P2Mat,
+                    t_gy_vec,
+                    empty_ratio,
+                    false);
+    t_pval_noadj_vec = t_pval_vec;
+  }else{
+    scoreTestFast_noadjCov_multi(t_GMat, t_MAF_vec, t_Beta_vec, t_seBeta_vec, t_pval_str_vec, t_Tstat_vec, t_var1_vec, t_var2_vec, t_pval_noadj_vec, varRatio_multi_vec);
+    t_pval_vec = t_pval_noadj_vec;
+  }
 
   //t_pval_noadj_vec(t_fastTestind_vec).print("t_pval_noadj_vec");
   //t_fastTestind_vec.print("t_fastTestind_vec");
@@ -2023,43 +2064,53 @@ void SAIGEClass::scoreTest_multi(arma::mat & t_GMat_tilde,
     arma::mat t_GMat_tilde_weight;
 
 
-        double varRatioVal_var2 = m_varRatioVal;
+    bool use_exact_var = m_is_cell_level_genotype;
+    double varRatioVal_var2 = m_varRatioVal;
+    if(use_exact_var){
+      varRatioVal_var2 = 1;
+    }
+    bool apply_projection = (m_isVarPsadj || use_exact_var) && (m_Sigma_iXXSigma_iX.n_elem > 1);
 
-
-
-    if(!m_flagSparseGRM_cur){
+    if(use_exact_var){
+      for(int i = 0; i < t_GMat_tilde.n_cols; i++){
+        arma::vec t_GVec_tilde=t_GMat_tilde.col(i);
+        t_P2Mat.col(i) = getSigma_G_V(t_GVec_tilde, 500, 1e-5);
+      }
+      t_GMat_tilde_weight = t_P2Mat % t_GMat_tilde;
+      var2m_vec = (arma::sum(t_GMat_tilde_weight, 0).t());
+      if(apply_projection){
+        var2m_vec = var2m_vec - t_GMat_tilde.t() * m_Sigma_iXXSigma_iX * m_X.t() * t_P2Mat;
+      }
+    }else if(!m_flagSparseGRM_cur){
       t_P2Mat = t_GMat_tilde.each_col() % m_mu2 * m_tauvec[0];
       t_GMat_tilde_weight = t_P2Mat % t_GMat_tilde;
       var2m_vec = (arma::sum(t_GMat_tilde_weight, 0).t());
     }else{
       if(m_SigmaMat_sp.n_rows > 2){
-      //t_P2Vec = arma::spsolve(m_SigmaMat_sp, t_gtilde);
-      t_P2Mat = t_GMat_tilde.t() * m_SigmaMat_sp;
-      t_GMat_tilde_weight = t_P2Mat % t_GMat_tilde;
-      var2m_vec = (arma::sum(t_GMat_tilde_weight, 0).t());
-      if(m_isVarPsadj){
-        varRatioVal_var2 = 1;
-        var2m_vec = var2m_vec - t_GMat_tilde.t() * m_Sigma_iXXSigma_iX * m_X.t() * t_P2Mat;
-      }
-     }else{
-        //t_P2Vec = m_sigmainvG_noV;
-	for(int i = 0; i < t_GMat_tilde.n_cols; i++){
-	arma::vec t_GVec_tilde=t_GMat_tilde.col(i);
+        t_P2Mat = t_GMat_tilde.t() * m_SigmaMat_sp;
+        t_GMat_tilde_weight = t_P2Mat % t_GMat_tilde;
+        var2m_vec = (arma::sum(t_GMat_tilde_weight, 0).t());
+        if(apply_projection){
+          varRatioVal_var2 = 1;
+          var2m_vec = var2m_vec - t_GMat_tilde.t() * m_Sigma_iXXSigma_iX * m_X.t() * t_P2Mat;
+        }
+      }else{
+        for(int i = 0; i < t_GMat_tilde.n_cols; i++){
+          arma::vec t_GVec_tilde=t_GMat_tilde.col(i);
           t_P2Mat.col(i) = getSigma_G_V(t_GVec_tilde, 500, 1e-5);
-	}
-	t_GMat_tilde_weight = t_P2Mat % t_GMat_tilde;
-	var2m_vec = (arma::sum(t_GMat_tilde_weight, 0).t());
-      if(m_isVarPsadj){
-        varRatioVal_var2 = 1;
-	var2m_vec = var2m_vec - t_GMat_tilde.t() * m_Sigma_iXXSigma_iX * m_X.t() * t_P2Mat;
+        }
+        t_GMat_tilde_weight = t_P2Mat % t_GMat_tilde;
+        var2m_vec = (arma::sum(t_GMat_tilde_weight, 0).t());
+        if(apply_projection){
+          varRatioVal_var2 = 1;
+          var2m_vec = var2m_vec - t_GMat_tilde.t() * m_Sigma_iXXSigma_iX * m_X.t() * t_P2Mat;
+        }
       }
-     }
     }
 
-
-    //std::cout << "var2 " << var2 << std::endl;
-    //double var1 = var2 * m_varRatioVal;
-	if(t_varRatio_vec.n_elem == 0){
+	if(use_exact_var){
+        	t_var1_vec = var2m_vec;
+	}else if(t_varRatio_vec.n_elem == 0){
         	t_var1_vec = var2m_vec * m_varRatioVal;
 	}else{
         	t_var1_vec = var2m_vec % t_varRatio_vec;
@@ -2114,7 +2165,10 @@ void SAIGEClass::assign_for_trait_i_2(unsigned int itrait){
         m_y = m_y_mt.col(itrait);
         //m_offset = m_offset_mt.col(itrait);
 
-        //m_X = m_X_mt.rows(startin, endin);
+        if(m_is_cell_level_genotype){
+                m_X = m_X_mt.rows(startin, endin);
+                m_Sigma_iXXSigma_iX = m_Sigma_iXXSigma_iX_mt.rows(startin, endin);
+        }
         //m_S_a = m_S_a_mt.col(itrait);
         m_mu = m_mu_mt.col(itrait);
         //m_resout = m_resout_mt.col(itrait);
@@ -2179,6 +2233,17 @@ void SAIGEClass::assign_for_itrait(unsigned int t_itrait){
 
 	m_startic = m_itrait*m_numMarker_cond;
 	m_endic = m_startic + m_numMarker_cond - 1;
+
+	m_res = m_res_mt.col(m_itrait);
+	m_mu2 = m_mu2_mt.col(m_itrait);
+	m_varWeightsvec = m_varWeightsvec_mt.col(m_itrait);
+	m_tauvec = m_tauvec_mt.col(m_itrait);
+	m_mu = m_mu_mt.col(m_itrait);
+
+	if(m_is_cell_level_genotype){
+		m_X = m_X_mt.rows(m_startin, m_endin);
+		m_Sigma_iXXSigma_iX = m_Sigma_iXXSigma_iX_mt.rows(m_startin, m_endin);
+	}
 
 }	
 

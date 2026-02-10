@@ -291,7 +291,24 @@ SPAGMMATtest <- function(bgenFile = "",
 
   set_Vmat_vec_orig(VmatFilelist, VmatSampleFilelist, obj.model.List[[1]]$sampleID)
 
-  ratioVecList <- Get_Variance_Ratio_multiTrait(varianceRatioFile, cateVarRatioMinMACVecExclude, cateVarRatioMaxMACVecInclude, isGroupTest, isSparseGRM) # readInGLMM.R
+  if (is_cell_level_genotype) {
+    message("Cell-level genotype mode: using exact Sigma^{-1} projection; variance ratio file is ignored.")
+    n_traits <- length(GMMATmodelFile_vec)
+    n_ratio_rows <- max(1, length(cateVarRatioMaxMACVecInclude))
+    make_ratio_matrix <- function(val, nrow = n_ratio_rows) {
+      matrix(val, nrow = nrow, ncol = n_traits)
+    }
+    ratioVecList <- list(
+      ratioVec_sparse = make_ratio_matrix(1),
+      ratioVec_null = make_ratio_matrix(1),
+      ratioVec_null_sample = make_ratio_matrix(1),
+      ratioVec_null_noXadj = make_ratio_matrix(1),
+      ratioVec_null_eg = make_ratio_matrix(1, nrow = 1),
+      ratioVec_sparse_eg = make_ratio_matrix(1, nrow = 1)
+    )
+  } else {
+    ratioVecList <- Get_Variance_Ratio_multiTrait(varianceRatioFile, cateVarRatioMinMACVecExclude, cateVarRatioMaxMACVecInclude, isGroupTest, isSparseGRM) # readInGLMM.R
+  }
   # print("ratioVecList")
   # print(ratioVecList)
 
