@@ -546,9 +546,18 @@ if(FALSE){
     col_indices <- list()
     if(length(offsetCol) > 0 && offsetCol != "") col_indices[["offset"]] <- match(offsetCol, colnames(data))
     if(length(varWeightsCol) > 0 && varWeightsCol != "") col_indices[["varWeights"]] <- match(varWeightsCol, colnames(data))
-    if(length(sampleIDColinphenoFile) > 0 && sampleIDColinphenoFile != "") col_indices[["IID"]] <- match(sampleIDColinphenoFile, colnames(data))
-    if(length(cellIDColinphenoFile) > 0 && cellIDColinphenoFile != "") col_indices[["barcode"]] <- match(cellIDColinphenoFile, colnames(data))
-    if(length(longlCol) > 0 && longlCol != "") col_indices[["longl"]] <- match(longlCol, colnames(data))
+    has_sample_id <- length(sampleIDColinphenoFile) > 0 && sampleIDColinphenoFile != ""
+    has_cell_id <- length(cellIDColinphenoFile) > 0 && cellIDColinphenoFile != ""
+    has_longl <- length(longlCol) > 0 && longlCol != ""
+    if(has_sample_id && !(sampleIDColinphenoFile %in% colnames(data))){
+      stop("sampleID column ", sampleIDColinphenoFile, " was not found in the phenotype file.")
+    }
+    if(has_cell_id && !(cellIDColinphenoFile %in% colnames(data))){
+      stop("cellID column ", cellIDColinphenoFile, " was not found in the phenotype file.")
+    }
+    if(has_longl && !(longlCol %in% colnames(data))){
+      stop("longitudinal column ", longlCol, " was not found in the phenotype file.")
+    }
 
     # Build additional columns list once
     extra_cols <- list()
@@ -578,14 +587,14 @@ if(FALSE){
     }
 
     # Add required ID columns efficiently
-    if (!is.null(col_indices[["IID"]])) {
-      mmat$IID <- data[, col_indices[["IID"]]]
+    if (has_sample_id) {
+      mmat$IID <- data[[sampleIDColinphenoFile]]
     }
-    if (cellIDColinphenoFile != "" && !is.null(col_indices[["barcode"]])) {
-      mmat$barcode <- data[, col_indices[["barcode"]]]
+    if (has_cell_id) {
+      mmat$barcode <- data[[cellIDColinphenoFile]]
     }
-    if (longlCol != "" && !is.null(col_indices[["longl"]])) {
-      mmat$longlVar <- data[, col_indices[["longl"]]]
+    if (has_longl) {
+      mmat$longlVar <- data[[longlCol]]
     }
 
     # More efficient NA removal using rowSums
