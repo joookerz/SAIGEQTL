@@ -516,11 +516,12 @@ if(FALSE){
   cat("formula is ", formula, "\n")
   formula.null <- as.formula(formula)
   mmat <- model.matrix(formula.null, data, na.action = NULL)
-  
+
   # More efficient column binding - find phenoCol index once
   pheno_idx <- match(phenoCol, colnames(data))
   mmat <- cbind(mmat, data[, pheno_idx, drop = FALSE])
   colnames(mmat)[ncol(mmat)] <- phenoCol
+  mmat <- as.data.frame(mmat)
 
   # Optimize sample covariate processing
   sampleCovarCol_q_names <- NULL
