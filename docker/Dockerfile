@@ -25,7 +25,8 @@ RUN curl -fsSL https://pixi.sh/install.sh | sh && \
     pixi run install-github-deps
 
 #RUN pixi run R CMD INSTALL .
-RUN pixi run Rscript -e 'install.packages(".", repos=NULL, type="source")'
+RUN pixi run Rscript -e 'install.packages(".", repos=NULL, type="source")' && \
+    pixi run Rscript -e 'stopifnot(requireNamespace("SAIGEQTL")); cat("✓ SAIGEQTL", as.character(packageVersion("SAIGEQTL")), "installed\n")'
 
 # Create Singularity-compatible wrapper scripts
 # Create Singularity-compatible wrapper scripts
