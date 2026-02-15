@@ -556,6 +556,13 @@ tryCatch({
    do.call(fitNULLGLMM_multiV, args_list)
 }, error = function(e) {
   message("Initial model failed with error: ", e$message)
+  if (!is.null(conditionCall(e))) {
+    message("Error call: ", paste(deparse(conditionCall(e)), collapse = " "))
+  }
+  tb <- tryCatch(utils::capture.output(traceback(50)), error = function(te) character(0))
+  if (length(tb) > 0) {
+    message("Traceback:\n", paste(tb, collapse = "\n"))
+  }
   initial_error <<- e$message
   fit_success <<- FALSE  # Track failure
   # Clean up any partial output files created during failed attempt
@@ -571,8 +578,10 @@ if(fit_success){
     print(modglmm$theta)
     
     # Check if model failed or variance components are out of bounds
-    theta_sum <- sum(modglmm$theta[2:length(modglmm$theta)])
-    if (theta_sum <= 0 || theta_sum > 1 || !modglmm$converged) {
+    theta_terms <- modglmm$theta[2:length(modglmm$theta)]
+    theta_sum <- sum(theta_terms, na.rm = TRUE)
+    theta_invalid <- any(!is.finite(theta_terms))
+    if (!is.finite(theta_sum) || theta_invalid || theta_sum <= 0 || theta_sum > 1 || !isTRUE(modglmm$converged)) {
       cat("Initial model failed (convergence: ", modglmm$converged, ", theta sum: ", theta_sum, ")\n")
       cat("Retrying with all covariates as offset...\n")
       
@@ -588,6 +597,13 @@ if(fit_success){
         do.call(fitNULLGLMM_multiV, args_list)
       }, error = function(e) {
         message("Offset model also failed with error: ", e$message)
+        if (!is.null(conditionCall(e))) {
+          message("Error call: ", paste(deparse(conditionCall(e)), collapse = " "))
+        }
+        tb <- tryCatch(utils::capture.output(traceback(50)), error = function(te) character(0))
+        if (length(tb) > 0) {
+          message("Traceback:\n", paste(tb, collapse = "\n"))
+        }
         fit_success <<- FALSE
         # Clean up any partial output files from failed retry
         remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)
@@ -599,7 +615,7 @@ if(fit_success){
     load(paste0(opt$outputPrefix, ".rda"), envir = my_env)
     modglmm <- my_env$modglmm
     
-    if(!modglmm$converged){
+    if (!isTRUE(modglmm$converged)) {
       cat("Model didn't converge successfully. Trying with increased maxiter (", opt$maxiter + 500, ")\n")
       opt$maxiter = opt$maxiter + 500
       args_list$maxiter <- opt$maxiter
@@ -611,6 +627,13 @@ if(fit_success){
         do.call(fitNULLGLMM_multiV, args_list)
       }, error = function(e) {
         message("Retry with increased iterations also failed: ", e$message)
+        if (!is.null(conditionCall(e))) {
+          message("Error call: ", paste(deparse(conditionCall(e)), collapse = " "))
+        }
+        tb <- tryCatch(utils::capture.output(traceback(50)), error = function(te) character(0))
+        if (length(tb) > 0) {
+          message("Traceback:\n", paste(tb, collapse = "\n"))
+        }
         fit_success <<- FALSE
         # Clean up any partial output files from failed retry
         remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)
@@ -630,6 +653,13 @@ if(fit_success){
       fit_success <<- TRUE  # Mark as successful if offset works
     }, error = function(e) {
       message("Offset model also failed with error: ", e$message)
+      if (!is.null(conditionCall(e))) {
+        message("Error call: ", paste(deparse(conditionCall(e)), collapse = " "))
+      }
+      tb <- tryCatch(utils::capture.output(traceback(50)), error = function(te) character(0))
+      if (length(tb) > 0) {
+        message("Traceback:\n", paste(tb, collapse = "\n"))
+      }
       fit_success <<- FALSE
       # Clean up any partial output files from failed offset attempt
       remove_failed_output_files(opt$outputPrefix, opt$outputPrefix_varRatio)

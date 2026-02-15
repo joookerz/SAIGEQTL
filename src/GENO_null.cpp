@@ -152,12 +152,21 @@ arma::ivec* NullGenoClass::Get_OneSNP_Geno(size_t SNPIdx){
 
 arma::ivec* NullGenoClass::Get_OneSNP_Geno_forVarRatio(size_t SNPIdx){
                 m_OneSNP_Geno.zeros(Nnomissing);
+                if (SNPIdx >= (size_t)numberofMarkers_varRatio) {
+                        Rcpp::stop("Get_OneSNP_Geno_forVarRatio: SNP index out of range.");
+                }
                 //avoid large continuous memory usage
                 int indexOfVectorPointer = SNPIdx/numMarkersofEachArray;
                 int SNPIdxinVec = SNPIdx % numMarkersofEachArray;
+                if (indexOfVectorPointer >= (int)genoVecofPointers_forVarRatio.size() || genoVecofPointers_forVarRatio[indexOfVectorPointer] == NULL) {
+                        Rcpp::stop("Get_OneSNP_Geno_forVarRatio: genotype buffer pointer is null.");
+                }
                 ////////////////
 
                 size_t Start_idx = m_size_of_esi * SNPIdxinVec;
+                if (genoVecofPointers_forVarRatio[indexOfVectorPointer]->size() < Start_idx + m_size_of_esi) {
+                        Rcpp::stop("Get_OneSNP_Geno_forVarRatio: genotype buffer is shorter than expected.");
+                }
                 size_t ind= 0;
                 unsigned char geno1;
                 int bufferGeno;
@@ -609,11 +618,44 @@ void NullGenoClass::setGenoObj(std::string bedfile, std::string bimfile, std::st
                 ptrsubSampleInGeno = subSampleInGeno;
                 indicatorGenoSamplesWithPheno_in = indicatorGenoSamplesWithPheno;
                 Nnomissing = subSampleInGeno.size();
-                // reset
-                //genoVec.clear();
+                // reset state in case setGenoObj() is called multiple times in one R session
+                for (size_t i = 0; i < genoVecofPointers.size(); i++) {
+                        if (genoVecofPointers[i] != NULL) {
+                                delete genoVecofPointers[i];
+                                genoVecofPointers[i] = NULL;
+                        }
+                }
+                genoVecofPointers.clear();
+
+                for (size_t i = 0; i < genoVecofPointers_forVarRatio.size(); i++) {
+                        if (genoVecofPointers_forVarRatio[i] != NULL) {
+                                delete genoVecofPointers_forVarRatio[i];
+                                genoVecofPointers_forVarRatio[i] = NULL;
+                        }
+                }
+                genoVecofPointers_forVarRatio.clear();
+
+                invstdvVec0.clear();
+                alleleFreqVec0.clear();
+                MACVec0.clear();
                 alleleFreqVec.clear();
                 MACVec.clear();
                 invstdvVec.clear();
+                invstdvVec0_forVarRatio.clear();
+                alleleFreqVec0_forVarRatio.clear();
+                MACVec0_forVarRatio.clear();
+                markerIndexVec0_forVarRatio.clear();
+                invstdvVec_forVarRatio.clear();
+                alleleFreqVec_forVarRatio.clear();
+                MACVec_forVarRatio.clear();
+                markerIndexVec_forVarRatio.clear();
+                MarkerswithMAFge_minMAFtoConstructGRM_indVec.clear();
+                g_randMarkerIndforVR.set_size(0);
+                numberofMarkerswithMAFge_minMAFtoConstructGRM = 0;
+                numberofMarkers_varRatio = 0;
+                numberofMarkers_varRatio_common = 0;
+                numofGenoArray = 0;
+                numMarkersofLastArray = 0;
 
                 M=0;
                 N=0;
@@ -852,6 +894,11 @@ void NullGenoClass::setGenoObj(std::string bedfile, std::string bimfile, std::st
                 //genoVecofPointers.resize(MarkerswithMAFge_minMAFtoConstructGRM_indVec);
 
                 invstdvVec.clear();
+                size_t numberofMarkerswithMAFge_minMAFtoConstructGRM_safe = std::min(invstdvVec0.size(), std::min(alleleFreqVec0.size(), MACVec0.size()));
+                if (numberofMarkerswithMAFge_minMAFtoConstructGRM_safe != (size_t)numberofMarkerswithMAFge_minMAFtoConstructGRM) {
+                        cout << "Warning: inconsistent GRM marker counts detected; using " << numberofMarkerswithMAFge_minMAFtoConstructGRM_safe << " markers." << endl;
+                }
+                numberofMarkerswithMAFge_minMAFtoConstructGRM = numberofMarkerswithMAFge_minMAFtoConstructGRM_safe;
                 invstdvVec.set_size(numberofMarkerswithMAFge_minMAFtoConstructGRM);
                 alleleFreqVec.clear();
                 alleleFreqVec.set_size(numberofMarkerswithMAFge_minMAFtoConstructGRM);
@@ -865,6 +912,11 @@ void NullGenoClass::setGenoObj(std::string bedfile, std::string bimfile, std::st
 
                 }
         if(isVarRatio){
+                size_t numberofMarkers_varRatio_safe = std::min(invstdvVec0_forVarRatio.size(), std::min(alleleFreqVec0_forVarRatio.size(), std::min(MACVec0_forVarRatio.size(), markerIndexVec0_forVarRatio.size())));
+                if (numberofMarkers_varRatio_safe != (size_t)numberofMarkers_varRatio) {
+                        cout << "Warning: inconsistent variance-ratio marker counts detected; using " << numberofMarkers_varRatio_safe << " markers." << endl;
+                }
+                numberofMarkers_varRatio = numberofMarkers_varRatio_safe;
                 invstdvVec_forVarRatio.clear();
                 invstdvVec_forVarRatio.set_size(numberofMarkers_varRatio);
                 alleleFreqVec_forVarRatio.clear();

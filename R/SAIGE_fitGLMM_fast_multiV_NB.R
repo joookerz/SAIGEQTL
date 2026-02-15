@@ -41,8 +41,13 @@ glmmkin.ai_PCG_Rcpp_multiV_NB <- function(bedFile, bimFile, famFile, Xorig, isCo
   set_dup_sample_index(as.numeric(factor(subPheno$IID, levels = unique(subPheno$IID))))
 
   if (bedFile != "" & useGRMtoFitNULL) {
+    subSampleInGeno_for_setgeno <- as.integer(subSampleInGeno[!duplicated(subSampleInGeno)])
+    indicator_for_setgeno <- indicatorGenoSamplesWithPheno
+    if (length(subSampleInGeno_for_setgeno) == 0) {
+      stop("No genotype sample indices remain after deduplication.")
+    }
     re1 <- system.time({
-      setgeno(bedFile, bimFile, famFile, subSampleInGeno, indicatorGenoSamplesWithPheno, memoryChunk, isDiagofKinSetAsOne)
+      setgeno(bedFile, bimFile, famFile, subSampleInGeno_for_setgeno, indicator_for_setgeno, memoryChunk, isDiagofKinSetAsOne)
     })
   }
   if (verbose) {
