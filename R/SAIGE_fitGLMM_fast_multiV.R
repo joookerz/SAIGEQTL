@@ -641,6 +641,8 @@ if(FALSE){
         by.x = "IID", by.y = "IIDgeno"
       )
       dataMerge_sort <- dataMerge[with(dataMerge, order(IndexGeno)), ]
+      # merge(by.x, by.y) keeps key as "IID"; retain explicit genotype ID column.
+      dataMerge_sort$IIDgeno <- dataMerge_sort$IID
       # dataMerge_sort = dataMerge[with(dataMerge, order(IndexPheno)),]
     } else {
       dataMerge_sort <- mmat_nomissing
@@ -2218,9 +2220,15 @@ glmmkin.ai_PCG_Rcpp_multiV <- function(bedFile, bimFile, famFile, Xorig, isCovar
   # if((!useSparseGRMtoFitNULL & useGRMtoFitNULL) | (skipVarianceRatioEstimation)){
   if (bedFile != "" & !useSparseGRMtoFitNULL & useGRMtoFitNULL) {
     print("HEREHRE")
+    # For repeated measurements, pass unique genotype indices observed in phenotypes.
+    subSampleInGeno_for_setgeno <- as.integer(subSampleInGeno[!duplicated(subSampleInGeno)])
+    indicator_for_setgeno <- indicatorGenoSamplesWithPheno
+    if (length(subSampleInGeno_for_setgeno) == 0) {
+      stop("No genotype sample indices remain after deduplication.")
+    }
 
     re1 <- system.time({
-      setgeno(bedFile, bimFile, famFile, subSampleInGeno, indicatorGenoSamplesWithPheno, memoryChunk, isDiagofKinSetAsOne)
+      setgeno(bedFile, bimFile, famFile, subSampleInGeno_for_setgeno, indicator_for_setgeno, memoryChunk, isDiagofKinSetAsOne)
     })
   }
   if (verbose) {
@@ -2270,6 +2278,23 @@ glmmkin.ai_PCG_Rcpp_multiV <- function(bedFile, bimFile, famFile, Xorig, isCovar
   cat("tauInit")
   print(tauInit)
 
+  # Align fixtau with tau length (C++ expects length(fixtau) == length(tau)).
+  if (length(fixtau) < length(tau)) {
+    fixtau <- c(fixtau, rep(0, length(tau) - length(fixtau)))
+  } else if (length(fixtau) > length(tau)) {
+    fixtau <- fixtau[seq_len(length(tau))]
+  }
+  fixtau[is.na(fixtau)] <- 0
+  fixtau <- as.integer(fixtau)
+
+  # Align tauInit with tau length to avoid NA from out-of-bounds indexing.
+  if (length(tauInit) < length(tau)) {
+    tauInit <- c(tauInit, rep(0, length(tau) - length(tauInit)))
+  } else if (length(tauInit) > length(tau)) {
+    tauInit <- tauInit[seq_len(length(tau))]
+  }
+  tauInit[is.na(tauInit)] <- 0
+
   tau[1:length(tau)] <- 0
   if (family$family %in% c("poisson", "binomial")) {
     # if(family$family %in% c("binomial")) {
@@ -2279,21 +2304,25 @@ glmmkin.ai_PCG_Rcpp_multiV <- function(bedFile, bimFile, famFile, Xorig, isCovar
     idxtau <- which(fixtau == 0)
     cat("fixtau ", fixtau, "\n")
     cat("tauInit ", tauInit, "\n")
-    if (sum(tauInit[idxtau]) == 0) {
+    if (sum(tauInit[idxtau], na.rm = TRUE) == 0) {
       tau[idxtau] <- 0.1
     } else {
       tau[idxtau] <- tauInit[idxtau]
     }
   } else { #  if(family$family %in% c("poisson", "binomial")) {
     idxtau <- which(fixtau == 0)
-    if (sum(tauInit[idxtau]) == 0) {
+    if (sum(tauInit[idxtau], na.rm = TRUE) == 0) {
+      varY <- var(Y, na.rm = TRUE)
       tau[1] <- 1
       # tauInit[1] = 1
-      tau[idxtau] <- var(Y) / (length(tau))
+      if (!is.finite(varY) || varY <= 0) {
+        stop("ERROR: phenotype variance is non-positive or non-finite; null model cannot be initialized.\n")
+      }
+      tau[idxtau] <- max(varY / (length(tau)), 1e-6)
       # tau[2] = 0
       # tau[2:length(tau)] = 0
-      if (abs(var(Y)) < 0.1) {
-        stop("WARNING: variance of the phenotype is much smaller than 1. Please consider invNormalize=T\n")
+      if (abs(varY) < 0.1) {
+        warning("Phenotype variance is much smaller than 1; continuing with stabilized tau initialization. Consider invNormalize=T if convergence is poor.")
       }
     } else {
       tau[fixtau == 0] <- tauInit[fixtau == 0]
@@ -2357,6 +2386,11 @@ glmmkin.ai_PCG_Rcpp_multiV <- function(bedFile, bimFile, famFile, Xorig, isCovar
 
   tau_q2 <- pmax(0, tau0_q2 + tau0_q2^2 * (re$YPAPY - re$Trace) / n)
   tau[idxtau] <- tau_q2
+  if (family$family == "gaussian") {
+    # Keep variance components strictly positive for numerical stability.
+    tau[idxtau] <- pmax(tau[idxtau], 1e-6)
+    tau[1] <- pmax(tau[1], 1e-6)
+  }
 
   if (!is.null(covarianceIdxMat)) {
     tau[idxtau[which(idxtau %in% idxtau2)]] <- 0
@@ -2411,6 +2445,9 @@ glmmkin.ai_PCG_Rcpp_multiV <- function(bedFile, bimFile, famFile, Xorig, isCovar
     print(t_end_fitglmmaiRPCG - t_end_Get_Coef)
 
     tau <- as.numeric(fit$tau)
+    if (family$family == "gaussian") {
+      tau <- pmax(tau, 1e-6)
+    }
     cov <- re.coef$cov
     alpha <- re.coef$alpha
     eta <- re.coef$eta
@@ -2427,7 +2464,8 @@ glmmkin.ai_PCG_Rcpp_multiV <- function(bedFile, bimFile, famFile, Xorig, isCovar
     W <- sqrtW^2
 
 
-    print(abs(tau - tau0) / (abs(tau) + abs(tau0) + tol))
+    tau_rel_change <- abs(tau - tau0) / (abs(tau) + abs(tau0) + tol)
+    print(tau_rel_change)
     cat("tau: ", tau, "\n")
     cat("tau0: ", tau0, "\n")
 
@@ -2440,13 +2478,15 @@ glmmkin.ai_PCG_Rcpp_multiV <- function(bedFile, bimFile, famFile, Xorig, isCovar
 
     # if(sum(tau[2:length(tau)]) == 0) break
     # Use only tau for convergence evaluation, because alpha was evaluated already in Get_Coef
-    if (sum(tau[2:length(tau)]) == 0) {
+    tau_random <- tau[2:length(tau)]
+    if (length(tau_random) == 0 || sum(tau_random, na.rm = TRUE) == 0) {
       break
       # tau[2:length(tau)] = rep(0.1,length(tau)-1)
     } else {
-      if (max(abs(tau - tau0) / (abs(tau) + abs(tau0) + tol)) < tol) break
+      tau_rel_change[!is.finite(tau_rel_change)] <- Inf
+      if (max(tau_rel_change, na.rm = TRUE) < tol) break
 
-      if (max(tau) > tol^(-2)) {
+      if (max(tau, na.rm = TRUE) > tol^(-2)) {
         warning("Large variance estimate observed in the iterations, model not converged...", call. = FALSE)
         i <- maxiter
         break
