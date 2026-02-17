@@ -240,9 +240,10 @@ ReadModel <- function(GMMATmodelFile = "", chrom = "", LOCO = TRUE, is_Firth_bet
 
 Get_Variance_Ratio <- function(varianceRatioFile, cateVarRatioMinMACVecExclude, cateVarRatioMaxMACVecInclude, isGroupTest, isSparseGRM, useSparseGRMtoFitNULL) {
   iscateVR <- FALSE
+  hasVarianceRatioFile <- !is.null(varianceRatioFile) && length(varianceRatioFile) > 0 && !is.na(varianceRatioFile) && nzchar(varianceRatioFile)
   # check variance ratio
-  if (!file.exists(varianceRatioFile)) {
-    if (varianceRatioFile != "") {
+  if (!hasVarianceRatioFile || !file.exists(varianceRatioFile)) {
+    if (hasVarianceRatioFile) {
       stop("varianceRatioFile is specified but the file ", varianceRatioFile, " does not exist\n")
     } else {
       cat("varianceRatioFile is not specified so variance ratio won't be used\n")
@@ -259,6 +260,8 @@ Get_Variance_Ratio <- function(varianceRatioFile, cateVarRatioMinMACVecExclude, 
       ratioVec_null_sample <- c(1)
       ratioVec_null_noXadj <- c(1)
     }
+    ratioVec_null_eg <- c(-1)
+    ratioVec_sparse_eg <- c(-1)
   } else {
     varRatioData <- data.frame(data.table:::fread(varianceRatioFile, header = F, stringsAsFactors = FALSE))
     if (ncol(varRatioData) == 3) {
@@ -390,7 +393,7 @@ Get_Variance_Ratio_multiTrait <- function(varianceRatioFileList, cateVarRatioMin
   ratioVec_sparse_eg <- NULL
   for (vrl in 1:length(varianceRatioFileVec)) {
     varianceRatioFile <- varianceRatioFileVec[vrl]
-    ratioVecList <- Get_Variance_Ratio(varianceRatioFile, cateVarRatioMinMACVecExclude, cateVarRatioMaxMACVecInclude, isGroupTest, isSparseGRM)
+    ratioVecList <- Get_Variance_Ratio(varianceRatioFile, cateVarRatioMinMACVecExclude, cateVarRatioMaxMACVecInclude, isGroupTest, isSparseGRM, useSparseGRMtoFitNULL)
     print(ratioVecList)
     ratioVec_sparse <- cbind(ratioVec_sparse, ratioVecList$ratioVec_sparse)
     ratioVec_null <- cbind(ratioVec_null, ratioVecList$ratioVec_null)
