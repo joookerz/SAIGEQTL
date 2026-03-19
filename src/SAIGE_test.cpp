@@ -335,43 +335,70 @@ void SAIGEClass::scoreTest_sandwich(arma::vec & t_gtilde,
                      double & t_pval){
     // Aggregate cell-level score contributions to donor-level clusters.
     arma::vec working_residual = m_res_mt.col(m_itrait) % m_varWeightsvec_mt.col(m_itrait);
-    arma::vec cell_scores = t_gtilde % working_residual;
-    arma::vec donor_scores;
+    arma::vec working_weight = m_mu2_mt.col(m_itrait);
+    arma::vec sqrt_weight = arma::sqrt(arma::clamp(working_weight, 0.0, arma::datum::inf));
+    arma::vec weighted_gtilde = t_gtilde % sqrt_weight;
+    arma::vec weighted_residual(working_residual.n_elem, arma::fill::zeros);
+    arma::uvec nonzero_weight_index = arma::find(sqrt_weight > std::sqrt(std::numeric_limits<double>::min()));
+    weighted_residual.elem(nonzero_weight_index) = working_residual.elem(nonzero_weight_index) / sqrt_weight.elem(nonzero_weight_index);
 
+    arma::mat X_trait = m_X_mt.rows(m_startin, m_endin);
+    arma::mat XtWX = m_XVX_mt.rows(m_startip, m_endip);
+    arma::mat XtWX_inv;
+    bool inverted = arma::inv_sympd(XtWX_inv, XtWX);
+    if(!inverted){
+        XtWX_inv = arma::pinv(XtWX);
+    }
+
+    arma::vec donor_scores;
     if(g_I_longl_mat.n_cols > 0){
-        donor_scores = arma::conv_to<arma::vec>::from(g_I_longl_mat.t() * cell_scores);
+        donor_scores.set_size(g_I_longl_mat.n_cols);
     }else{
-        donor_scores = cell_scores;
+        donor_scores.set_size(weighted_residual.n_elem);
+    }
+
+    for(arma::uword j = 0; j < donor_scores.n_elem; ++j){
+        arma::uvec cluster_index;
+        if(g_I_longl_mat.n_cols > 0){
+            cluster_index = arma::find(g_I_longl_vec == j);
+        }else{
+            cluster_index.set_size(1);
+            cluster_index(0) = j;
+        }
+
+        arma::vec zg_j = weighted_gtilde.elem(cluster_index);
+        arma::vec zr_j = weighted_residual.elem(cluster_index);
+
+        if(m_sandwich_correction == "HC0"){
+            donor_scores(j) = arma::dot(zg_j, zr_j);
+            continue;
+        }
+
+        arma::vec sqrt_weight_j = sqrt_weight.elem(cluster_index);
+        arma::mat X_j = X_trait.rows(cluster_index);
+        arma::mat ZX_j = X_j.each_col() % sqrt_weight_j;
+        arma::mat H_jj = ZX_j * XtWX_inv * ZX_j.t();
+        H_jj = 0.5 * (H_jj + H_jj.t());
+        arma::mat M_jj = arma::eye<arma::mat>(cluster_index.n_elem, cluster_index.n_elem) - H_jj;
+        M_jj = 0.5 * (M_jj + M_jj.t());
+
+        arma::vec eigval;
+        arma::mat eigvec;
+        arma::eig_sym(eigval, eigvec, M_jj);
+        eigval = arma::clamp(eigval, 1e-8, arma::datum::inf);
+
+        arma::vec transform_eval;
+        if(m_sandwich_correction == "HC2"){
+            transform_eval = 1.0 / arma::sqrt(eigval);
+        }else{
+            transform_eval = 1.0 / eigval;
+        }
+        arma::mat A_j = eigvec * arma::diagmat(transform_eval) * eigvec.t();
+        donor_scores(j) = arma::as_scalar(zg_j.t() * A_j * zr_j);
     }
 
     double score_sum = arma::sum(donor_scores);
-    arma::vec leverage_weights = arma::square(t_gtilde) % m_mu2_mt.col(m_itrait);
-    arma::vec donor_leverage_weights;
-    double sandwich_var = 0.0;
-
-    if(g_I_longl_mat.n_cols > 0){
-        donor_leverage_weights = arma::conv_to<arma::vec>::from(g_I_longl_mat.t() * leverage_weights);
-    }else{
-        donor_leverage_weights = leverage_weights;
-    }
-
-    double leverage_denom = arma::sum(donor_leverage_weights);
-    for(arma::uword j = 0; j < donor_scores.n_elem; ++j){
-        double qj = donor_scores(j);
-        double leverage = 0.0;
-        if(leverage_denom > std::numeric_limits<double>::min()){
-            leverage = donor_leverage_weights(j) / leverage_denom;
-        }
-        leverage = std::min(leverage, 1.0 - 1e-8);
-        double scale = 1.0;
-        if(m_sandwich_correction == "HC2"){
-            scale = std::max(1.0 - leverage, 1e-8);
-        }else if(m_sandwich_correction == "HC3"){
-            double one_minus_h = std::max(1.0 - leverage, 1e-8);
-            scale = one_minus_h * one_minus_h;
-        }
-        sandwich_var += (qj * qj) / scale;
-    }
+    double sandwich_var = arma::dot(donor_scores, donor_scores);
     int df_int = static_cast<int>(donor_scores.n_elem) - m_p;
     if(df_int < 1){
         df_int = 1;

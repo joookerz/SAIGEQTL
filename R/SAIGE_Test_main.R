@@ -338,7 +338,8 @@ SPAGMMATtest <- function(bgenFile = "",
   }
 
 
-  sampleIDs_for_geno <- as.character(obj.model.List[[1]]$sampleID)
+  donor_cluster_ids <- as.character(obj.model.List[[1]]$sampleID)
+  sampleIDs_for_geno <- donor_cluster_ids
   if (is_cell_level_genotype) {
     cell_ids <- obj.model.List[[1]]$barcode
     if (is.null(cell_ids) || length(cell_ids) == 0) {
@@ -420,7 +421,8 @@ SPAGMMATtest <- function(bgenFile = "",
   # print("SigmaMat_sp")
   # print(SigmaMat_sp)
 
-  b <- as.numeric(factor(obj.model.List[[1]]$sampleID, levels = unique(obj.model.List[[1]]$sampleID)))
+  cluster_ids_for_sandwich <- if (sandwichvariance) donor_cluster_ids else as.character(obj.model.List[[1]]$sampleID)
+  b <- as.numeric(factor(cluster_ids_for_sandwich, levels = unique(cluster_ids_for_sandwich)))
   I_mat <- Matrix::sparseMatrix(i = 1:length(b), j = b, x = rep(1, length(b)))
   I_mat <- 1.0 * I_mat
   #     set_I_longl_mat_SAIGEtest(I_mat, b-1)
