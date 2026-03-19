@@ -82,12 +82,14 @@ SAIGEClass::SAIGEClass(
         arma::mat & t_mu_gxe,
         arma::mat & t_varWeights_gxe,
         bool t_is_cell_level_genotype,
-        bool t_use_sandwich_variance){
+        bool t_use_sandwich_variance,
+        std::string t_sandwich_correction){
 
 
 m_is_gxe = t_is_gxe;
 m_is_cell_level_genotype = t_is_cell_level_genotype;
 m_use_sandwich_variance = t_use_sandwich_variance;
+m_sandwich_correction = t_sandwich_correction;
     m_y_mt = t_y;
     m_XV_mt = t_XV;
     m_XXVX_inv_mt = t_XXVX_inv;
@@ -343,7 +345,33 @@ void SAIGEClass::scoreTest_sandwich(arma::vec & t_gtilde,
     }
 
     double score_sum = arma::sum(donor_scores);
-    double sandwich_var = arma::dot(donor_scores, donor_scores);
+    arma::vec leverage_weights = arma::square(t_gtilde) % m_mu2_mt.col(m_itrait);
+    arma::vec donor_leverage_weights;
+    double sandwich_var = 0.0;
+
+    if(g_I_longl_mat.n_cols > 0){
+        donor_leverage_weights = arma::conv_to<arma::vec>::from(g_I_longl_mat.t() * leverage_weights);
+    }else{
+        donor_leverage_weights = leverage_weights;
+    }
+
+    double leverage_denom = arma::sum(donor_leverage_weights);
+    for(arma::uword j = 0; j < donor_scores.n_elem; ++j){
+        double qj = donor_scores(j);
+        double leverage = 0.0;
+        if(leverage_denom > std::numeric_limits<double>::min()){
+            leverage = donor_leverage_weights(j) / leverage_denom;
+        }
+        leverage = std::min(leverage, 1.0 - 1e-8);
+        double scale = 1.0;
+        if(m_sandwich_correction == "HC2"){
+            scale = std::max(1.0 - leverage, 1e-8);
+        }else if(m_sandwich_correction == "HC3"){
+            double one_minus_h = std::max(1.0 - leverage, 1e-8);
+            scale = one_minus_h * one_minus_h;
+        }
+        sandwich_var += (qj * qj) / scale;
+    }
     int df_int = static_cast<int>(donor_scores.n_elem) - m_p;
     if(df_int < 1){
         df_int = 1;

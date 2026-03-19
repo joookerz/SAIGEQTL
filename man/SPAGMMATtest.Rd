@@ -10,6 +10,7 @@ SPAGMMATtest(
   sampleFile = "",
   is_cell_level_genotype = FALSE,
   sandwichvariance = FALSE,
+  sandwich_correction = "HC0",
   vcfFile = "",
   vcfFileIndex = "",
   vcfField = "DS",
@@ -85,6 +86,8 @@ SPAGMMATtest(
 \item{is_cell_level_genotype}{logical. Set TRUE when the genotype file already encodes one row per cell (no donor-level collapsing). Requires Step1 to save cell IDs via \code{cellIDColinphenoFile}. By default, FALSE.}
 
 \item{sandwichvariance}{logical. Set TRUE to replace the cell-level exact variance with a donor-clustered sandwich variance estimator. This option currently supports only single-variant cell-level genotype tests and disables SPA. By default, FALSE.}
+
+\item{sandwich_correction}{character. Finite-sample correction for sandwich variance. One of \code{HC0}, \code{HC2}, or \code{HC3}. By default, \code{HC0}.}
 
 \item{vcfFile}{character. Path to vcf file}
 

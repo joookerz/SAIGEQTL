@@ -5,6 +5,7 @@
 #' @param sampleFile character. Path to the file that contains one column for IDs of samples in the bgen file. The file does not contain header lines.
 #' @param is_cell_level_genotype logical. Set TRUE when the genotype file already encodes one row per cell (no donor-level collapsing). Requires Step1 to save cell IDs via `cellIDColinphenoFile`. By default, FALSE.
 #' @param sandwichvariance logical. Set TRUE to replace the cell-level exact variance with a donor-clustered sandwich variance estimator. This option currently supports only single-variant cell-level genotype tests and disables SPA. By default, FALSE.
+#' @param sandwich_correction character. Finite-sample correction for sandwich variance. One of `HC0`, `HC2`, or `HC3`. By default, `HC0`.
 #' @param vcfFile character. Path to vcf file
 #' @param vcfFileIndex character. Path to vcf index file. Indexed by tabix. Path to index for vcf file by tabix, .csi file using 'tabix --csi -p vcf file.vcf.gz'
 #' @param vcfField character. genotype field in vcf file to use. "DS" for dosages or "GT" for genotypes. By default, "DS".
@@ -67,6 +68,7 @@ SPAGMMATtest <- function(bgenFile = "",
                          sampleFile = "",
                          is_cell_level_genotype = FALSE,
                          sandwichvariance = FALSE,
+                         sandwich_correction = "HC0",
                          vcfFile = "",
                          vcfFileIndex = "",
                          vcfField = "DS",
@@ -314,6 +316,10 @@ SPAGMMATtest <- function(bgenFile = "",
 
   if (sandwichvariance && !is_cell_level_genotype) {
     stop("sandwichvariance=TRUE currently requires is_cell_level_genotype=TRUE.")
+  }
+  sandwich_correction <- toupper(sandwich_correction)
+  if (!(sandwich_correction %in% c("HC0", "HC2", "HC3"))) {
+    stop("sandwich_correction must be one of HC0, HC2, or HC3.")
   }
   if (sandwichvariance && condition != "") {
     stop("sandwichvariance=TRUE does not support conditional analysis yet.")
@@ -765,7 +771,8 @@ SPAGMMATtest <- function(bgenFile = "",
       t_mu_gxe = mu_gxe,
       t_varWeights_gxe = varWeights_gxe,
       t_is_cell_level_genotype = is_cell_level_genotype,
-      t_use_sandwich_variance = sandwichvariance
+      t_use_sandwich_variance = sandwichvariance,
+      t_sandwich_correction = sandwich_correction
     )
     # }
 
@@ -941,7 +948,8 @@ SPAGMMATtest <- function(bgenFile = "",
       t_mu_gxe = mu_gxe,
       t_varWeights_gxe = varWeights_gxe,
       t_is_cell_level_genotype = is_cell_level_genotype,
-      t_use_sandwich_variance = sandwichvariance
+      t_use_sandwich_variance = sandwichvariance,
+      t_sandwich_correction = sandwich_correction
     )
   }
 

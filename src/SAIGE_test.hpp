@@ -129,6 +129,7 @@ arma::mat m_varWeights_gxe_mt;
 bool m_is_gxe;
 bool m_is_cell_level_genotype;
 bool m_use_sandwich_variance;
+std::string m_sandwich_correction;
 arma::mat    m_XVX_mt;
 arma::mat    m_XV_mt;
 arma::mat    m_XXVX_inv_mt;
@@ -208,7 +209,8 @@ std::vector<std::ofstream> OutFile_single_vec;
         arma::mat & t_mu_gxe,
         arma::mat & t_varWeights_gxe,
         bool t_is_cell_level_genotype,
-        bool t_use_sandwich_variance);
+        bool t_use_sandwich_variance,
+        std::string t_sandwich_correction);
 
 
    void set_seed(unsigned int seed);

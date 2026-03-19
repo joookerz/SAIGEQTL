@@ -60,6 +60,10 @@ option_list <- list(
     type = "logical", default = FALSE,
     help = "Set TRUE to use donor-clustered sandwich variance for cell-level genotype tests. Disables SPA and currently supports only single-variant tests. [default=FALSE]"
   ),
+  make_option("--sandwich_correction",
+    type = "character", default = "HC0",
+    help = "Finite-sample correction for sandwich variance: HC0, HC2, or HC3. [default=HC0]"
+  ),
   make_option("--bedFile",
     type = "character", default = "",
     help = "Path to bed file (PLINK)"
@@ -399,6 +403,7 @@ SPAGMMATtest(
   sampleFile = opt$sampleFile,
   is_cell_level_genotype = opt$use_cell_level_genotype,
   sandwichvariance = opt$sandwichvariance,
+  sandwich_correction = opt$sandwich_correction,
   bedFile = opt$bedFile,
   bimFile = opt$bimFile,
   famFile = opt$famFile,

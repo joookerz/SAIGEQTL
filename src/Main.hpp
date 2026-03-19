@@ -250,7 +250,8 @@ void setSAIGEobjInCPP(arma::mat & t_XVX,
 	arma::mat & t_mu_gxe,
 	arma::mat & t_varWeights_gxe,
 	bool t_is_cell_level_genotype,
-	bool t_use_sandwich_variance
+	bool t_use_sandwich_variance,
+	std::string t_sandwich_correction
 	);
 
 
