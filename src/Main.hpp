@@ -245,12 +245,13 @@ void setSAIGEobjInCPP(arma::mat & t_XVX,
 	                arma::mat & t_S_a_gxe,
         arma::mat & t_XXVX_inv_gxe,
         arma::mat & t_y_gxe,
-        arma::mat & t_res_gxe,
-        arma::mat & t_mu2_gxe,
-        arma::mat & t_mu_gxe,
-        arma::mat & t_varWeights_gxe,
-        bool t_is_cell_level_genotype
-        );
+	arma::mat & t_res_gxe,
+	arma::mat & t_mu2_gxe,
+	arma::mat & t_mu_gxe,
+	arma::mat & t_varWeights_gxe,
+	bool t_is_cell_level_genotype,
+	bool t_use_sandwich_variance
+	);
 
 
 

@@ -81,11 +81,13 @@ SAIGEClass::SAIGEClass(
         arma::mat & t_mu2_gxe,
         arma::mat & t_mu_gxe,
         arma::mat & t_varWeights_gxe,
-        bool t_is_cell_level_genotype){
+        bool t_is_cell_level_genotype,
+        bool t_use_sandwich_variance){
 
 
 m_is_gxe = t_is_gxe;
 m_is_cell_level_genotype = t_is_cell_level_genotype;
+m_use_sandwich_variance = t_use_sandwich_variance;
     m_y_mt = t_y;
     m_XV_mt = t_XV;
     m_XXVX_inv_mt = t_XXVX_inv;
@@ -250,7 +252,10 @@ void SAIGEClass::scoreTest(arma::vec & t_GVec,
     }
     bool apply_projection = (m_isVarPsadj || use_exact_var) && (m_Sigma_iXXSigma_iX.n_elem > 1);
 
-    if(use_exact_var){
+    if(m_use_sandwich_variance && m_is_cell_level_genotype){
+      scoreTest_sandwich(t_gtilde, t_Beta, t_seBeta, t_pval_str, t_Tstat, t_var1, t_var2, t_pval);
+      return;
+    }else if(use_exact_var){
       t_P2Vec = getSigma_G_V(t_gtilde, 500, 1e-5);
       var2m = dot(t_P2Vec, t_gtilde);
       if(apply_projection){
@@ -316,6 +321,71 @@ void SAIGEClass::scoreTest(arma::vec & t_GVec,
     t_Tstat = S;
     t_var1 = var1;
     t_var2 = var2;
+}
+
+void SAIGEClass::scoreTest_sandwich(arma::vec & t_gtilde,
+                     double& t_Beta,
+                     double& t_seBeta,
+                     std::string& t_pval_str,
+                     double &t_Tstat,
+                     double &t_var1,
+                     double &t_var2,
+                     double & t_pval){
+    // Aggregate cell-level score contributions to donor-level clusters.
+    arma::vec working_residual = m_res_mt.col(m_itrait) % m_varWeightsvec_mt.col(m_itrait);
+    arma::vec cell_scores = t_gtilde % working_residual;
+    arma::vec donor_scores;
+
+    if(g_I_longl_mat.n_cols > 0){
+        donor_scores = arma::conv_to<arma::vec>::from(g_I_longl_mat.t() * cell_scores);
+    }else{
+        donor_scores = cell_scores;
+    }
+
+    double score_sum = arma::sum(donor_scores);
+    double sandwich_var = arma::dot(donor_scores, donor_scores);
+    int df_int = static_cast<int>(donor_scores.n_elem) - m_p;
+    if(df_int < 1){
+        df_int = 1;
+    }
+    double df = static_cast<double>(df_int);
+    double stat = 0.0;
+
+    if(sandwich_var <= std::numeric_limits<double>::min()){
+        t_pval = 1.0;
+        t_Beta = 0.0;
+        t_seBeta = arma::datum::inf;
+        t_Tstat = score_sum;
+        t_var1 = sandwich_var;
+        t_var2 = sandwich_var;
+        t_pval_str = "1.000000E+00";
+        return;
+    }
+
+    double t_stat = score_sum / std::sqrt(sandwich_var);
+    stat = std::abs(t_stat);
+    t_pval = 2.0 * R::pt(-stat, df, 1, 0);
+
+    char pValueBuf[100];
+    if (t_pval != 0) {
+        sprintf(pValueBuf, "%.6E", t_pval);
+    } else {
+        double log10p = std::log10(2.0) + R::pt(-stat, df, 1, 1) * M_LOG10E;
+        int exponent = std::floor(log10p);
+        double fraction = std::pow(10.0, log10p - exponent);
+        if (fraction >= 9.95) {
+            fraction = 1.0;
+            exponent++;
+        }
+        sprintf(pValueBuf, "%.1fE%d", fraction, exponent);
+    }
+
+    t_pval_str = pValueBuf;
+    t_Beta = score_sum / sandwich_var;
+    t_seBeta = 1.0 / std::sqrt(sandwich_var);
+    t_Tstat = score_sum;
+    t_var1 = sandwich_var;
+    t_var2 = sandwich_var;
 }
 
 
@@ -657,6 +727,9 @@ void SAIGEClass::getMarkerPval(arma::vec & t_GVec,
  if(m_is_cell_level_genotype){
  	t_isnoadjCov = false;
  }
+ if(m_use_sandwich_variance && t_isCondition){
+        Rcpp::stop("sandwichvariance does not support conditional analysis yet.");
+ }
   //std::cout << "t_isnoadjCov " << t_isnoadjCov << std::endl;
   //std::cout << "t_isSparseGRM " << t_isSparseGRM << std::endl;
 
@@ -694,7 +767,7 @@ void SAIGEClass::getMarkerPval(arma::vec & t_GVec,
   t_pval_noSPA = pval_noadj;
   t_pval = pval_noadj;
  double tol1, m1;
-if(abs(StdStat) > m_SPA_Cutoff && m_traitType != "quantitative"){
+ if(!m_use_sandwich_variance && abs(StdStat) > m_SPA_Cutoff && m_traitType != "quantitative"){
    if(!is_gtilde){
           getadjGFast(t_GVec, t_gtilde, indexNonZeroVec0_arma);
    }
@@ -803,7 +876,7 @@ if(t_isCondition){
 
   double StdStat_c = std::abs(t_Tstat_c) / sqrt(t_varT_c);
 
-  if(abs(StdStat_c) > m_SPA_Cutoff && m_traitType != "quantitative" && t_varT_c > std::numeric_limits<double>::min()){
+  if(!m_use_sandwich_variance && abs(StdStat_c) > m_SPA_Cutoff && m_traitType != "quantitative" && t_varT_c > std::numeric_limits<double>::min()){
      bool t_isSPAConverge_c;
      double q_c, qinv_c, pval_noadj_c, SPApval_c;
      arma::vec m_mu_vec = m_mu_mt.col(m_itrait);

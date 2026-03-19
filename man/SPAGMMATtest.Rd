@@ -9,6 +9,7 @@ SPAGMMATtest(
   bgenFileIndex = "",
   sampleFile = "",
   is_cell_level_genotype = FALSE,
+  sandwichvariance = FALSE,
   vcfFile = "",
   vcfFileIndex = "",
   vcfField = "DS",
@@ -82,6 +83,8 @@ SPAGMMATtest(
 \item{sampleFile}{character. Path to the file that contains one column for IDs of samples in the bgen file. The file does not contain header lines.}
 
 \item{is_cell_level_genotype}{logical. Set TRUE when the genotype file already encodes one row per cell (no donor-level collapsing). Requires Step1 to save cell IDs via \code{cellIDColinphenoFile}. By default, FALSE.}
+
+\item{sandwichvariance}{logical. Set TRUE to replace the cell-level exact variance with a donor-clustered sandwich variance estimator. This option currently supports only single-variant cell-level genotype tests and disables SPA. By default, FALSE.}
 
 \item{vcfFile}{character. Path to vcf file}
 

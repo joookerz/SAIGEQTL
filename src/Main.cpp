@@ -1365,7 +1365,8 @@ void setSAIGEobjInCPP(arma::mat & t_XVX,
 	arma::mat & t_mu2_gxe,
 	arma::mat & t_mu_gxe,
 	arma::mat & t_varWeights_gxe,
-	bool t_is_cell_level_genotype
+	bool t_is_cell_level_genotype,
+	bool t_use_sandwich_variance
 	)
 {
 	//t_SigmaMat_sp.print("t_SigmaMat_sp");
@@ -1427,7 +1428,8 @@ void setSAIGEobjInCPP(arma::mat & t_XVX,
         t_mu2_gxe,
         t_mu_gxe,
         t_varWeights_gxe,
-	t_is_cell_level_genotype);
+	t_is_cell_level_genotype,
+	t_use_sandwich_variance);
   //ptr_gSAIGEobj->m_flagSparseGRM = false;
 }
 

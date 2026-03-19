@@ -128,6 +128,7 @@ arma::mat m_varWeights_gxe_mt;
 
 bool m_is_gxe;
 bool m_is_cell_level_genotype;
+bool m_use_sandwich_variance;
 arma::mat    m_XVX_mt;
 arma::mat    m_XV_mt;
 arma::mat    m_XXVX_inv_mt;
@@ -206,7 +207,8 @@ std::vector<std::ofstream> OutFile_single_vec;
         arma::mat & t_mu2_gxe,
         arma::mat & t_mu_gxe,
         arma::mat & t_varWeights_gxe,
-        bool t_is_cell_level_genotype	);
+        bool t_is_cell_level_genotype,
+        bool t_use_sandwich_variance);
 
 
    void set_seed(unsigned int seed);
@@ -225,6 +227,14 @@ std::vector<std::ofstream> OutFile_single_vec;
                      bool t_is_region,
 		     arma::uvec & t_indexForNonZero,
 		     double & t_pval);
+   void scoreTest_sandwich(arma::vec & t_gtilde,
+                     double& t_Beta,
+                     double& t_seBeta,
+                     std::string& t_pval_str,
+                     double &t_Tstat,
+                     double &t_var1,
+                     double &t_var2,
+                     double & t_pval);
 
     void scoreTestFast(arma::vec & t_GVec,
                      arma::uvec & t_indexForNonZero,
