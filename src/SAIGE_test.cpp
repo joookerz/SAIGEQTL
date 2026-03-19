@@ -343,7 +343,9 @@ void SAIGEClass::scoreTest_sandwich(arma::vec & t_gtilde,
     weighted_residual.elem(nonzero_weight_index) = working_residual.elem(nonzero_weight_index) / sqrt_weight.elem(nonzero_weight_index);
 
     arma::mat X_trait = m_X_mt.rows(m_startin, m_endin);
-    arma::mat XtWX = m_XVX_mt.rows(m_startip, m_endip);
+    // XtWX is theoretically symmetric, but small floating-point asymmetry from
+    // the R-side matrix assembly can trigger repeated inv_sympd warnings.
+    arma::mat XtWX = arma::symmatu(m_XVX_mt.rows(m_startip, m_endip));
     arma::mat XtWX_inv;
     bool inverted = arma::inv_sympd(XtWX_inv, XtWX);
     if(!inverted){
